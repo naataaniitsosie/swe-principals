@@ -7,6 +7,18 @@ The scope of the POC is limited to a single open source API project with a signi
 ## Dataset
 (GHArchive)[https://www.gharchive.org/] - A dataset that records the public GitHub timeline, including pull requests, issues, commits, and other events. (Event types)[https://docs.github.com/en/rest/using-the-rest-api/github-event-types?apiVersion=2022-11-28] exist in GitHub's own documentation.
 
+### GHArchive Event Types
+The POC extracts the following event types for PR sentiment analysis:
+
+| Code | GHArchive type | Description |
+|------|----------------|-------------|
+| `PULL_REQUEST` | `PullRequestEvent` | PR opened, closed, merged |
+| `PR_REVIEW` | `PullRequestReviewEvent` | PR reviews (approve, request changes, comment) |
+| `PR_REVIEW_COMMENT` | `PullRequestReviewCommentEvent` | Inline comments on PR diff |
+| `ISSUE_COMMENT` | `IssueCommentEvent` | Comments on PRs (PRs are issues) |
+
+**Configuration:** Event types are defined in [`dataset_readers/gharchive/config.py`](dataset_readers/gharchive/config.py) (`EXPRESSJS_CONFIG.event_types`) and the `EventType` enum in [`dataset_readers/gharchive/models.py`](dataset_readers/gharchive/models.py).
+
 ### Why not Kaggle GitHub Repos?
 The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] dataset is a static snapshot of GitHub repositories, which focuses on the codebase and repository metadata rather than the dynamic interactions and contributions made through pull requests. For analyzing sentiments in pull requests, a dataset that captures the temporal and interactive nature of contributions is essential. GHArchive provides a more comprehensive view of the ongoing development activities, making it more suitable for this analysis.
 
