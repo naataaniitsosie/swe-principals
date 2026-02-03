@@ -1,0 +1,13 @@
+# Data
+data/
+
+# Environment
+.env
+
+# Logs
+logs/
+
+# Cache
+.cache/
+
+# __pycache__
