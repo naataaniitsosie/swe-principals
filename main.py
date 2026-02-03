@@ -1,86 +1,121 @@
 """
 Main entry point for ExpressJS sentiment analysis data extraction.
 
-This script demonstrates how to use the data extraction framework
-to pull ExpressJS pull request data from GHArchive.
+Supports multiple dataset readers via --dataset-reader flag.
+Default: gharchive
 """
+import argparse
 import logging
 from datetime import datetime
-from data_extraction import DataExtractor, ExtractionConfig, EXPRESSJS_CONFIG
-from data_extraction.config import RepositoryConfig
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+from dataset_readers.config import RepositoryConfig
+from dataset_readers import (
+    get_reader,
+    get_default_reader_name,
+    list_readers,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
-def main():
-    """
-    Main execution function.
-    
-    This demonstrates the extraction process:
-    1. Configure the extraction (dates, repository, event types)
-    2. Initialize the extractor with OOP principles
-    3. Execute the extraction
-    4. Data is automatically filtered and saved
-    """
-    
-    # Option 1: Use default ExpressJS configuration
-    # config = EXPRESSJS_CONFIG
-    
-    # Option 2: Create custom configuration
-    config = ExtractionConfig(
-        repository=RepositoryConfig(owner="expressjs", name="express"),
-        start_date=datetime(2024, 2, 1),  # Start date
-        end_date=datetime(2024, 2, 2),     # End date (2 days for testing)
-        event_types=[
-            "PullRequestEvent",           # PR open/close/merge events
-            "PullRequestReviewEvent",     # PR reviews
-            "PullRequestReviewCommentEvent",  # Comments on PR reviews
-            "IssueCommentEvent"           # Comments on PRs (PRs are issues)
-        ],
-        output_dir="./data/raw"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Extract ExpressJS pull request data for sentiment analysis.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"Available readers: {', '.join(list_readers())}",
     )
-    
+    parser.add_argument(
+        "--dataset-reader",
+        "-r",
+        type=str,
+        default=get_default_reader_name(),
+        help=f"Dataset reader to use (default: {get_default_reader_name()})",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default="2024-02-01",
+        help="Start date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=str,
+        default="2024-02-02",
+        help="End date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./data/raw",
+        help="Output directory for extracted data",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    repository = RepositoryConfig(owner="expressjs", name="express")
+    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+    event_types = [
+        "PullRequestEvent",
+        "PullRequestReviewEvent",
+        "PullRequestReviewCommentEvent",
+        "IssueCommentEvent",
+    ]
+
     logger.info("=" * 60)
     logger.info("ExpressJS Sentiment Analysis - Data Extraction")
     logger.info("=" * 60)
-    logger.info(f"Repository: {config.repository.full_name}")
-    logger.info(f"Date Range: {config.start_date.date()} to {config.end_date.date()}")
-    logger.info(f"Event Types: {', '.join(config.event_types)}")
+    logger.info(f"Dataset reader: {args.dataset_reader}")
+    logger.info(f"Repository: {repository.full_name}")
+    logger.info(f"Date range: {start_date.date()} to {end_date.date()}")
+    logger.info(f"Event types: {', '.join(event_types)}")
     logger.info("=" * 60)
-    
-    # Initialize extractor (Dependency Injection happens internally)
-    extractor = DataExtractor(config)
-    
+
     try:
-        # Execute extraction
-        output_file = extractor.extract()
-        
+        reader = get_reader(
+            args.dataset_reader,
+            repository=repository,
+            start_date=start_date,
+            end_date=end_date,
+            event_types=event_types,
+            output_dir=args.output_dir,
+        )
+    except KeyError as e:
+        logger.error(str(e))
+        return 1
+
+    try:
+        output_file = reader.extract()
+
         logger.info("=" * 60)
         logger.info("Extraction Complete!")
         logger.info(f"Data saved to: {output_file}")
         logger.info("=" * 60)
-        
-        # Optional: Load and display sample events
-        events = extractor.repository.load_events(output_file)
-        logger.info(f"\nTotal events extracted: {len(events)}")
-        
-        if events:
-            logger.info("\nSample event:")
-            sample = events[0]
-            logger.info(f"  Type: {sample.get('type')}")
-            logger.info(f"  Actor: {sample.get('actor', {}).get('login')}")
-            logger.info(f"  Created: {sample.get('created_at')}")
-        
+
+        if hasattr(reader, "load_events"):
+            try:
+                events = reader.load_events(output_file)
+                logger.info(f"\nTotal events extracted: {len(events)}")
+                if events:
+                    sample = events[0]
+                    logger.info("\nSample event:")
+                    logger.info(f"  Type: {sample.get('type')}")
+                    logger.info(f"  Actor: {sample.get('actor', {}).get('login')}")
+                    logger.info(f"  Created: {sample.get('created_at')}")
+            except NotImplementedError:
+                pass
+
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
         return 1
-    
+
     return 0
 
 

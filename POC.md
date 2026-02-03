@@ -50,7 +50,19 @@ pip install -r requirements.txt
 ```
 
 ### Execute
-Run data extraction:
-```
+Run data extraction (default: GHArchive):
+```bash
 python main.py
 ```
+
+Switch dataset readers:
+```bash
+python main.py --dataset-reader gharchive
+python main.py --dataset-reader bigquery
+```
+
+Flags:
+- `--dataset-reader`, `-r` – Reader to use (default: `gharchive`)
+- `--start-date` – Start date YYYY-MM-DD (default: 2024-02-01)
+- `--end-date` – End date YYYY-MM-DD (default: 2024-02-02)
+- `--output-dir` – Output directory (default: `./data/raw`)
