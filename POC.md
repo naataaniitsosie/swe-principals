@@ -62,19 +62,45 @@ pip install -r requirements.txt
 ```
 
 ### Execute
-Run data extraction (default: GHArchive):
+
+**1. Data extraction** (writes JSONL to `./data/raw` by default)
+
+Run extraction (default: GHArchive):
 ```bash
-python main.py
+python dataset.py
 ```
 
 Switch dataset readers:
 ```bash
-python main.py --dataset-reader gharchive
-python main.py --dataset-reader bigquery
+python dataset.py --dataset-reader gharchive
+python dataset.py --dataset-reader bigquery
 ```
 
-Flags:
+Flags for `dataset.py`:
 - `--dataset-reader`, `-r` – Reader to use (default: `gharchive`)
 - `--start-date` – Start date YYYY-MM-DD (default: 2024-02-01)
 - `--end-date` – End date YYYY-MM-DD (default: 2024-02-02)
 - `--output-dir` – Output directory (default: `./data/raw`)
+
+**2. Sentiment analysis** (run on existing extracted data)
+
+Run on all `.jsonl` files in the default raw directory:
+```bash
+python sentiment.py
+```
+
+Run on a specific file or directory:
+```bash
+python sentiment.py ./data/raw/expressjs_express_20260203_134451.jsonl
+python sentiment.py ./data/raw
+```
+
+Write results to a custom directory:
+```bash
+python sentiment.py ./data/raw --output-dir ./data/sentiment
+python sentiment.py -o ./out/sentiment
+```
+
+Flags for `sentiment.py`:
+- `input` – Path to a `.jsonl` file or directory of `.jsonl` files (default: `./data/raw`)
+- `--output-dir`, `-o` – Output directory for sentiment results (default: `./data/sentiment`)

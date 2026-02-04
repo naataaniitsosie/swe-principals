@@ -1,8 +1,6 @@
 """
-Main entry point for ExpressJS sentiment analysis data extraction.
-
-Supports multiple dataset readers via --dataset-reader flag.
-Default: gharchive
+Data extraction entry point.
+Extract ExpressJS PR event data via dataset readers (default: GHArchive).
 """
 import argparse
 import logging
