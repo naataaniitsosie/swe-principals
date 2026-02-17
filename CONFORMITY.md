@@ -16,7 +16,7 @@ Alignment with dominant group norms due to social pressure [citation needed]. In
 
 ## Methodology
 
-### Detect Conformity in PR Review Comments
+### Goal
 Detect the following in PR review comments:
 1. References shared norms
 2. Frames deviation as undesirable
@@ -41,24 +41,43 @@ The POC extracts the following event types for PR sentiment analysis:
 #### Why not Kaggle GitHub Repos?
 The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] dataset is a static snapshot of GitHub repositories, which focuses on the codebase and repository metadata rather than the dynamic interactions and contributions made through pull requests. For analyzing sentiments in pull requests, a dataset that captures the temporal and interactive nature of contributions is essential. GHArchive provides a more comprehensive view of the ongoing development activities, making it more suitable for this analysis.
 
-## Phase 1 — Surface-Level Conformity Detection (No LLM)
+#### Preprocessing
+- Remove bot and CI comments  
+- Strip code blocks and diff snippets  
+- Lowercase and tokenize text  
+- Remove trivial comments (e.g., “LGTM”, “Thanks!”)
 
-### Objective
+#### Repositories Under Investigation
+API frameworks have a long history of standardized conventions and best practices. In addition, they are strictly governed by their maintainers and community [citation needed], which makes them a natural fit for this study.
+
+**Note:** Use the exact `owner/repo` value when filtering in GHArchive (e.g. `RepositoryFilter`).
+
+| Repository (GHArchive filter) | Description | Language | Is Open Source? | Date Created (verified) |
+|------------------------------|-------------|----------|-----------------|-------------------------|
+| [expressjs/express](https://github.com/expressjs/express) | Web framework for Node.js | JavaScript | Yes | 2009-06-26 |
+| [nestjs/nest](https://github.com/nestjs/nest) | Web framework for Node.js | TypeScript | Yes | 2016-10-26 |
+| [koajs/koa](https://github.com/koajs/koa) | Web framework for Node.js | JavaScript | Yes | 2013-09-06 |
+| [fastify/fastify](https://github.com/fastify/fastify) | Web framework for Node.js | JavaScript | Yes | 2016-06-01 |
+| [hapijs/hapi](https://github.com/hapijs/hapi) | Web framework for Node.js | JavaScript | Yes | 2011-04-12 |
+| [spring-projects/spring-boot](https://github.com/spring-projects/spring-boot) | Web framework for Java | Java | Yes | 2013-12-12 |
+| [tiangolo/fastapi](https://github.com/tiangolo/fastapi) | Web framework for Python | Python | Yes | 2018-07-24 |
+| [django/django](https://github.com/django/django) | Web framework for Python | Python | Yes | 2003-07-15 |
+| [pallets/flask](https://github.com/pallets/flask) | Web framework for Python | Python | Yes | 2010-04-06 |
+| [gin-gonic/gin](https://github.com/gin-gonic/gin) | Web framework for Go | Go | Yes | 2014-07-25 |
+
+
+### Phase 1 — Surface-Level Conformity Detection (No LLM)
+
+#### Objective
 Establish an existence proof that linguistic markers of norm enforcement are present in PR review discourse using interpretable lexical features.
 
 We operationalize conformity narrowly as:
 
 > The presence of linguistic markers indicating norm enforcement, deviation discouragement, or authority invocation in PR review comments.
 
-### Preprocessing
-- Remove bot and CI comments  
-- Strip code blocks and diff snippets  
-- Lowercase and tokenize text  
-- Remove trivial comments (e.g., “LGTM”, “Thanks!”)  
+#### Linguistic Marker Categories
 
-### Linguistic Marker Categories
-
-#### 1️⃣ Normative Modal Lexicon
+##### 1️⃣ Normative Modal Lexicon
 Examples:
 ```
 should
@@ -78,7 +97,7 @@ Metrics:
 - `modal_count`
 - `contains_modal` (binary)
 
-#### 2️⃣ Norm Reference Lexicon
+##### 2️⃣ Norm Reference Lexicon
 Examples:
 ```
 idiomatic
@@ -103,7 +122,7 @@ Metrics:
 - `norm_ref_count`
 - `contains_norm_reference` (binary)
 
-#### 3️⃣ Authority Anchors
+##### 3️⃣ Authority Anchors
 Detect:
 - URLs  
 - “according to”  
@@ -116,7 +135,7 @@ Metrics:
 - `authority_count`
 - `contains_authority_anchor` (binary)
 
-### Surface Conformity Score
+#### Surface Conformity Score
 
 ```
 SurfaceConformityScore =
@@ -135,12 +154,12 @@ Interpretation:
 
 ---
 
-## Phase 2 — LLM-Based Semantic Conformity Detection
+### Phase 2 — LLM-Based Semantic Conformity Detection
 
-### Objective
+#### Objective
 Capture implicit and contextual conformity signals not detectable via lexical methods.
 
-### Operationalization
+#### Operationalization
 
 For each PR review comment, the LLM evaluates:
 1. References shared norms (Yes/No)
@@ -154,14 +173,14 @@ The LLM must:
 - Ignore helpfulness
 - Focus only on norm invocation and enforcement
 
-### LLM Conformity Score
+#### LLM Conformity Score
 ```
 LLMConformityScore = sum(binary_labels)
 ```
 
 Range: 0–4
 
-### Combined Conformity Score
+#### Combined Conformity Score
 
 ```
 ConformityScore =
@@ -173,12 +192,12 @@ Weights (α, β) will be determined empirically.
 
 ---
 
-## Phase 3 — Model Comparison & Conformity Amplification (If phase 2 is successful)
+### Phase 3 — Model Comparison & Conformity Amplification (If phase 2 is successful)
 
-### Objective
+#### Objective
 Test whether code-refined or alignment-tuned LLMs amplify conformity signals relative to baseline models.
 
-### Procedure
+#### Procedure
 
 1. Generate PR-style review comments using:
    - Base LLM (e.g., GPT-2 small)
@@ -191,7 +210,7 @@ Test whether code-refined or alignment-tuned LLMs amplify conformity signals rel
 
 3. Compare distributions across model families.
 
-### Hypothesis
+#### Hypothesis
 
 If code-refined models exhibit:
 - Higher norm invocation frequency
@@ -202,13 +221,13 @@ Then refinement may increase social conformity in code review discourse.
 
 ---
 
-#### Models
+##### Models
 | Model | HF ID | Notes |
 | ----- | ----- | ----- |
 | GPT2 Small | `openai-community/gpt2` | baseline model |
 | <Model Name> | <HF ID> | <Notes> |
 
-### Existing Code Artifacts
+#### Existing Code Artifacts
 In this repository, use the `dataset_readers` folder to read the dataset and extract PR comments.
 
 ```bash
