@@ -46,12 +46,6 @@ def parse_args() -> argparse.Namespace:
         default="2024-02-02",
         help="End date (YYYY-MM-DD)",
     )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./data/raw",
-        help="Output directory for extracted data",
-    )
     return parser.parse_args()
 
 
@@ -79,7 +73,6 @@ def main() -> int:
             start_date=start_date,
             end_date=end_date,
             event_types=event_types,
-            output_dir=args.output_dir,
         )
     except KeyError as e:
         logger.error(str(e))
@@ -90,22 +83,17 @@ def main() -> int:
 
     try:
         output_files = reader.extract()
-        for name, path in output_files:
-            logger.info("Extracted %s -> %s", name, path)
-            if hasattr(reader, "load_events"):
-                try:
-                    events = reader.load_events(path)
-                    logger.info("  Events: %d", len(events))
-                except NotImplementedError:
-                    pass
+        # One DB for all repos; path is repeated per repo for API compatibility
+        out_path = output_files[0][1] if output_files else None
+        repo_names = [name for name, _ in output_files]
+        if out_path:
+            logger.info("Extracted to %s (%d repos: %s)", out_path, len(repo_names), ", ".join(repo_names))
     except Exception as e:
         logger.error("Extraction failed: %s", e, exc_info=True)
         return 1
 
     logger.info("=" * 60)
-    logger.info("Extraction complete for %d repository(ies)", len(output_files))
-    for name, path in output_files:
-        logger.info("  %s -> %s", name, path)
+    logger.info("Extraction complete. Output: %s", out_path)
     logger.info("=" * 60)
     return 0
 

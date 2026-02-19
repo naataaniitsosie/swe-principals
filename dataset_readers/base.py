@@ -31,11 +31,3 @@ class DatasetReaderBase(ABC):
         when extracting multiple repositories.
         """
         pass
-
-    def load_events(self, file_path: str) -> List[Dict[str, Any]]:
-        """
-        Load extracted events from a file. Override in readers that support it.
-        """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement load_events"
-        )

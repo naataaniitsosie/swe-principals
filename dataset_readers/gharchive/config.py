@@ -11,7 +11,7 @@ from dataset_readers.config import RepositoryConfig
 
 @dataclass
 class ExtractionConfig:
-    """Configuration for GHArchive extraction process."""
+    """Configuration for GHArchive extraction. Raw: filter by repo and event type; preprocessor does the rest."""
     repositories: List[RepositoryConfig]
     start_date: datetime
     end_date: datetime
@@ -21,10 +21,10 @@ class ExtractionConfig:
     def __post_init__(self):
         if self.start_date >= self.end_date:
             raise ValueError("start_date must be before end_date")
-        if not self.event_types:
-            raise ValueError("event_types cannot be empty")
         if not self.repositories:
             raise ValueError("repositories cannot be empty")
+        if not self.event_types:
+            raise ValueError("event_types cannot be empty")
 
 
 # Repositories under investigation (CONFORMITY.md). Use exact owner/repo for GHArchive filter.

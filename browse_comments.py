@@ -1,24 +1,38 @@
 #!/usr/bin/env python3
 """
-Convert preprocessed JSONL (one per repo) to a single Markdown file per repo,
+Convert preprocessed events from the single SQLite DB to Markdown files per repo,
 organized by date. Use for scrolling through comments with full metadata.
 """
 import argparse
 import json
+import sqlite3
 from pathlib import Path
 from collections import defaultdict
 from typing import List
 
+from project_config import DATA_DIR
 
-def load_jsonl(path: Path) -> List[dict]:
-    records = []
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            records.append(json.loads(line))
-    return records
+
+def _table_for_db(conn: sqlite3.Connection) -> str:
+    """Use cleaned if present, else events."""
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('cleaned','events') ORDER BY name DESC"
+    )
+    row = cursor.fetchone()
+    return row[0] if row else "events"
+
+
+def load_records_by_repo(db_path: Path) -> dict[str, List[dict]]:
+    """Load all records from DB (cleaned or events table), grouped by repo."""
+    conn = sqlite3.connect(str(db_path))
+    table = _table_for_db(conn)
+    cursor = conn.execute(f"SELECT repo, event_data FROM {table} ORDER BY created_at, id")
+    by_repo: dict[str, List[dict]] = defaultdict(list)
+    for row in cursor:
+        repo, event_data = row[0], row[1]
+        by_repo[repo].append(json.loads(event_data))
+    conn.close()
+    return dict(by_repo)
 
 
 def date_from_created_at(created_at: str) -> str:
@@ -46,7 +60,7 @@ def record_to_md(rec: dict, number: int) -> str:
     return "\n".join(lines)
 
 
-def jsonl_to_md(records: List[dict], repo_label: str) -> str:
+def records_to_md(records: List[dict], repo_label: str) -> str:
     """Group records by date, build one Markdown document with outline by date."""
     by_date: dict[str, list[dict]] = defaultdict(list)
     for rec in records:
@@ -64,28 +78,41 @@ def jsonl_to_md(records: List[dict], repo_label: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Convert preprocessed JSONL in a directory to Markdown per repo, organized by date."
+        description="Convert preprocessed SQLite DB to one Markdown file per repo, organized by date."
     )
     parser.add_argument(
-        "input_dir",
+        "dir",
         type=Path,
-        help="Directory containing .jsonl files; one .md per .jsonl, written to the same directory.",
+        nargs="?",
+        default=DATA_DIR,
+        help="Directory containing events.db; one .md per repo written here (default: from project_config)",
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help="Use this directory for events.db instead of dir",
     )
     args = parser.parse_args()
 
-    input_dir = args.input_dir
+    from dataset_readers.gharchive.storage import DEFAULT_DB_FILENAME
+    input_dir = args.dir
     if not input_dir.is_dir():
         raise SystemExit(f"Not a directory: {input_dir}")
+    db_dir = args.db if args.db is not None else input_dir
+    db_path = db_dir / DEFAULT_DB_FILENAME
+    if not db_path.exists():
+        raise SystemExit(f"Database not found: {db_path}")
 
-    for path in sorted(input_dir.glob("*.jsonl")):
-        records = load_jsonl(path)
+    by_repo = load_records_by_repo(db_path)
+    for repo, records in sorted(by_repo.items()):
         if not records:
-            print(f"Skip (empty): {path.name}")
             continue
-
-        repo_label = records[0].get("repo") or path.stem
-        md_content = jsonl_to_md(records, repo_label)
-        out_path = path.with_suffix(".md")
+        repo_label = repo
+        md_content = records_to_md(records, repo_label)
+        safe_name = repo.replace("/", "_")
+        out_path = input_dir / f"{safe_name}.md"
         out_path.write_text(md_content, encoding="utf-8")
         print(f"Wrote {out_path.name} ({len(records)} comments)")
 

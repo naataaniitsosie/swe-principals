@@ -1,17 +1,20 @@
 """
-GHArchive dataset reader.
-Wraps DataExtractor for the dataset_readers plugin interface.
-Fetches each hour once and writes one file per repository.
+GHArchive dataset reader. Wraps DataExtractor for the dataset_readers plugin interface.
+Fetches each hour once; one SQLite DB for all configured repos.
 """
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 from dataset_readers.base import DatasetReaderBase
 from dataset_readers.config import RepositoryConfig
 from dataset_readers.registry import register_reader
-from dataset_readers.gharchive.config import ExtractionConfig
+from dataset_readers.gharchive.config import ExtractionConfig, DEFAULT_EVENT_TYPES
 from dataset_readers.gharchive.extractor import DataExtractor
 
+try:
+    from project_config import DATA_DIR
+except ImportError:
+    raise ImportError("project_config.py is required to set DATA_DIR")
 
 @register_reader("gharchive")
 class GHArchiveReader(DatasetReaderBase):
@@ -25,22 +28,20 @@ class GHArchiveReader(DatasetReaderBase):
         repositories: List[RepositoryConfig],
         start_date: datetime,
         end_date: datetime,
-        event_types: List[str],
-        output_dir: str = "./data/raw",
+        event_types: List[str] = None,
         **kwargs: Any,
     ):
+        if event_types is None:
+            event_types = DEFAULT_EVENT_TYPES
         config = ExtractionConfig(
             repositories=repositories,
             start_date=start_date,
             end_date=end_date,
             event_types=event_types,
-            output_dir=output_dir,
+            output_dir=str(DATA_DIR),
         )
         self._extractor = DataExtractor(config)
 
     def extract(self, **kwargs: Any) -> List[Tuple[str, str]]:
-        """Returns list of (repo_full_name, file_path)."""
+        """Returns list of (repo_full_name, db_path). Same db_path for all repos."""
         return self._extractor.extract()
-
-    def load_events(self, file_path: str) -> List[Dict[str, Any]]:
-        return self._extractor.repository.load_events(file_path)

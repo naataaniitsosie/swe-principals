@@ -9,6 +9,11 @@ from dataset_readers.base import DatasetReaderBase
 from dataset_readers.config import RepositoryConfig
 from dataset_readers.registry import register_reader
 
+try:
+    from project_config import DATA_DIR
+except ImportError:
+    raise ImportError("project_config.py is required to set DATA_DIR")
+
 
 @register_reader("bigquery")
 class BigQueryReader(DatasetReaderBase):
@@ -25,15 +30,12 @@ class BigQueryReader(DatasetReaderBase):
         repositories: List[RepositoryConfig],
         start_date: datetime,
         end_date: datetime,
-        event_types: List[str],
-        output_dir: str = "./data/raw",
         **kwargs: Any,
     ):
         self._repositories = repositories
         self._start_date = start_date
         self._end_date = end_date
-        self._event_types = event_types
-        self._output_dir = output_dir
+        self._output_dir = str(DATA_DIR)
 
     def extract(self, **kwargs: Any) -> List[Tuple[str, str]]:
         raise NotImplementedError(

@@ -55,11 +55,9 @@ class GHArchiveClient:
         event_types: Optional[Set[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Fetch one hour of events. If repo_names and event_types are set, only return
-        events that match (filter while streaming so we don't hold the full hour in memory).
+        Fetch one hour of events. If repo_names/event_types are set, only return events that match both.
         """
         url = self._construct_url(date, hour)
-        logger.info("Fetching %s", url)
 
         try:
             response = self.http_client.get(url, stream=True)
@@ -68,7 +66,8 @@ class GHArchiveClient:
             events = []
             repo_names_lower = {n.lower() for n in (repo_names or set())}
             event_types_set = event_types or set()
-            do_filter = bool(repo_names_lower and event_types_set)
+            filter_repo = bool(repo_names_lower)
+            filter_type = bool(event_types_set)
 
             with gzip.GzipFile(fileobj=response.raw) as f:
                 for line in f:
@@ -79,12 +78,12 @@ class GHArchiveClient:
                     except json.JSONDecodeError as e:
                         logger.warning("Failed to parse JSON line: %s", e)
                         continue
-                    if do_filter:
+                    if filter_repo:
                         repo_name = (event.get("repo") or {}).get("name") or ""
                         if repo_name.lower() not in repo_names_lower:
                             continue
-                        if event.get("type") not in event_types_set:
-                            continue
+                    if filter_type and event.get("type") not in event_types_set:
+                        continue
                     events.append(event)
 
             logger.info("Fetched %s events from %s", len(events), url)
