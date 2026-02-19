@@ -19,6 +19,10 @@ _CODE_BLOCK_RE = re.compile(r"```[\w]*\n.*?```", re.DOTALL | re.IGNORECASE)
 _DIFF_LINE_RE = re.compile(r"^[\+\-]\s?.*$", re.MULTILINE)
 
 # Markdown images: ![alt](url) and [image](url) (GitHub-style image links)
+# Examples
+# Example: "![alt](url)" -> True
+# Example: "[image](url)" -> True
+# Example: "![alt](url)" -> False
 _IMAGE_MD_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)", re.IGNORECASE)
 _IMAGE_LINK_RE = re.compile(r"\[image\]\([^)]*\)", re.IGNORECASE)
 
@@ -46,12 +50,12 @@ def strip_diff_snippets(text: str) -> str:
     return "\n".join(kept)
 
 
-def strip_images(text: str) -> str:
-    """Remove markdown images ![alt](url) and [image](url) links."""
+def strip_images(text: str, placeholder: str = "<REDACTED IMAGE>") -> str:
+    """Replace markdown images ![alt](url) and [image](url) with a placeholder (default: <REDACTED IMAGE>)."""
     if not text:
         return ""
-    t = _IMAGE_MD_RE.sub(" ", text)
-    t = _IMAGE_LINK_RE.sub(" ", t)
+    t = _IMAGE_MD_RE.sub(placeholder, text)
+    t = _IMAGE_LINK_RE.sub(placeholder, t)
     return t
 
 
