@@ -22,16 +22,34 @@ def _table_for_db(conn: sqlite3.Connection) -> str:
     return row[0] if row else "events"
 
 
+def _repo_from_record(rec: dict) -> str:
+    """Repo name from record (cleaned: top-level repo; raw: repo.name)."""
+    repo = rec.get("repo")
+    if isinstance(repo, str):
+        return repo
+    return (repo or {}).get("name") or ""
+
+
 def load_records_by_repo(db_path: Path) -> dict[str, List[dict]]:
     """Load all records from DB (cleaned or events table), grouped by repo."""
     conn = sqlite3.connect(str(db_path))
     table = _table_for_db(conn)
-    cursor = conn.execute(f"SELECT repo, event_data FROM {table} ORDER BY created_at, id")
-    by_repo: dict[str, List[dict]] = defaultdict(list)
-    for row in cursor:
-        repo, event_data = row[0], row[1]
-        by_repo[repo].append(json.loads(event_data))
+    cursor = conn.execute(f"SELECT id, event_data FROM {table}")
+    rows = [(row[0], row[1]) for row in cursor]
     conn.close()
+    # Parse and sort by created_at then id; group by repo
+    records = []
+    for _id, event_data in rows:
+        try:
+            rec = json.loads(event_data)
+            rec.setdefault("id", _id)
+            records.append(rec)
+        except (json.JSONDecodeError, TypeError):
+            continue
+    records.sort(key=lambda r: (r.get("created_at") or "", str(r.get("id") or "")))
+    by_repo: dict[str, List[dict]] = defaultdict(list)
+    for rec in records:
+        by_repo[_repo_from_record(rec)].append(rec)
     return dict(by_repo)
 
 

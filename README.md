@@ -11,19 +11,17 @@ Full DB path is `DATA_DIR / DB_FILENAME`. There is no CLI option to choose an ou
 
 ## Runnable scripts (pipeline)
 
-Run in order: **1. Extract** → **1.5 Dataset stats** (optional) → **2. Preprocess** → **3. Analyze** (e.g. sentiment). Each script reads from the previous step’s output.
+Run in order: **1. Extract** → **2. Preprocess** → **3. Analyze** (e.g. sentiment).
 
 | Step | Script | Input | Output |
 |------|--------|--------|--------|
-| 1. Extract | `python dataset.py` | GHArchive (network) | `data/raw/events.db` (single SQLite DB; `repo` column for querying) |
-| 1.5 Stats | `python dataset_stats.py` | config `DATA_DIR` | stdout (total / unique / duplicates per repo) |
+| 1. Extract | `python dataset.py` | GHArchive (network) | `data/raw/events.db` |
 | 2. Preprocess | `python preprocess.py` | config `DATA_DIR` | same DB (`cleaned` table) |
 | 3. Analyze | `python sentiment.py` | `data/raw` or `data/cleaned` | `./data/sentiment` |
 
-**Chaining (one db at config DATA_DIR):**
+**Chaining:**
 ```bash
 python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
-python dataset_stats.py
 python preprocess.py
 python sentiment.py ./data/raw --output-dir ./data/sentiment
 ```
@@ -45,50 +43,46 @@ python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
 | `--start-date` | `2024-02-01` | Start date (YYYY-MM-DD) |
 | `--end-date` | `2024-02-02` | End date (YYYY-MM-DD) |
 
-Output is a single SQLite file `events.db` with an `events` table. Indexed columns for querying:
+Output is a single SQLite file `events.db` with an `events` table (columns: `id`, `event_data` JSON blob).
 
-| Attribute | Description |
-|-----------|-------------|
-| `repo` | Repository (e.g. `django/django`) |
-| `created_at` | ISO timestamp for time range and ordering |
-| `type` | Event type (IssueCommentEvent, PullRequestEvent, etc.) |
-| `author_association` | MEMBER, CONTRIBUTOR, NONE, etc. |
-| `actor_login` | GitHub login of the actor |
-
----
-
-### 1.5 (Optional) Dataset stats (`dataset_stats.py`)
-
-Report stats about the data from the dataset: **total**, **unique** (by event id), and **duplicate** counts per repo (from the single `events.db`). Chainable after `dataset.py`; pass directory containing `events.db` (default: config `DATA_DIR`).
+**Stats with sqlite3** (default path `data/raw/events.db`):
 
 ```bash
-python dataset_stats.py
-python dataset_stats.py ./data/raw
-```
+# Total rows
+sqlite3 data/raw/events.db "SELECT COUNT(*) FROM events;"
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `dir` | config `DATA_DIR` | Directory containing `events.db` |
-| `--db` DIR | — | Use this directory for `events.db` instead of dir |
-| `--no-header` | — | Omit header row (e.g. for piping) |
+# Rows per repo (raw: repo in event_data.repo.name)
+sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo.name'), COUNT(*) FROM events GROUP BY 1 ORDER BY 1;"
+
+# Total and unique by id
+sqlite3 data/raw/events.db "SELECT COUNT(*) AS total, COUNT(DISTINCT id) AS unique_ids FROM events;"
+
+# Cleaned table (if present): total and per-repo (cleaned has top-level repo)
+sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
+sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo'), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 1;"
+```
 
 ---
 
 ### 2. Preprocess data (`preprocess.py`)
 
-Preprocess the single SQLite DB produced by `dataset.py` (CONFORMITY.md Preprocessing): **dedupe by event id** (keep first), remove bot and CI comments, strip code blocks and diff snippets, drop trivial comments (e.g. “LGTM”, “Thanks!”), lowercase and tokenize. Reads `events` from the DB in config `DATA_DIR` and writes the `cleaned` table into the same DB. Each output record adds `cleaned_text` and `tokens`. Events with no semantic value are dropped.
+Preprocess the single SQLite DB produced by `dataset.py` (CONFORMITY.md Preprocessing): **dedupe by event id** (keep first), remove bot and CI comments, strip code blocks and diff snippets, drop trivial comments (e.g. “LGTM”, “Thanks!”), lowercase and tokenize. Reads `events` from and writes the `cleaned` table to the DB at **project_config** `DATA_DIR` / `DB_FILENAME`. No CLI options. Each output record adds `cleaned_text` and `tokens`. Events with no semantic value are dropped.
 
 ```bash
 python preprocess.py
 ```
 
+***Stats with sqlite3***:
 ```bash
-python preprocess.py -i ./data/raw
-```
+# Cleaned: total rows
+sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--input-dir`, `-i` | config `DATA_DIR` | Directory containing `events.db` (input and output are the same DB) |
+# Cleaned: by event type
+sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.type'), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 2 DESC;"
+
+# Cleaned: by date
+sqlite3 data/raw/events.db "SELECT date(json_extract(event_data, '$.created_at')), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 1;"
+```
 
 ---
 
@@ -101,5 +95,5 @@ python browse_comments.py
 python browse_comments.py ./data/raw
 ```
 
-Uses the `cleaned` table if present, else `events`. You can run `dataset_stats.py` with the same dir to see per-repo stats.
+Uses the `cleaned` table if present, else `events`.
 

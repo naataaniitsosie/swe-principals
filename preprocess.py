@@ -1,10 +1,8 @@
 """
 Preprocess PR event data produced by dataset.py (CONFORMITY.md Preprocessing).
-Reads only from the SQLite DB (events table); no JSONL. Removes bot/CI and trivial comments;
-strips code blocks and diff snippets; lowercases and tokenizes. Writes cleaned table to same DB.
-Input/output: single DB in project config data dir (default data/raw).
+Reads from the SQLite DB at project config path (events table); writes cleaned table to same DB.
+No CLI options: DB location is from project_config.py (DATA_DIR / DB_FILENAME).
 """
-import argparse
 import logging
 from pathlib import Path
 
@@ -18,30 +16,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Preprocess extracted PR event data (remove bots/trivial, strip code/diff, tokenize).",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Input/output: single DB in project config dir; adds cleaned table.",
-    )
-    parser.add_argument(
-        "--input-dir",
-        "-i",
-        type=str,
-        default=None,
-        help="Directory containing events.db (default: from project_config, data/raw)",
-    )
-    return parser.parse_args()
-
-
 def main() -> int:
-    args = parse_args()
-    data_dir = Path(args.input_dir) if args.input_dir else DATA_DIR
+    data_dir = Path(DATA_DIR)
     if not data_dir.is_dir():
-        logger.error("Input directory does not exist: %s", data_dir)
+        logger.error("Data directory does not exist: %s (set DATA_DIR in project_config.py)", data_dir)
         return 1
 
-    pipeline = CleanerPipeline(str(data_dir), str(data_dir))
+    pipeline = CleanerPipeline(str(data_dir))
     results = pipeline.run()
 
     if not results:
