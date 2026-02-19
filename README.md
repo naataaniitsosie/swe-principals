@@ -28,7 +28,12 @@ python dataset.py
 With a custom date range and output directory:
 
 ```bash
-python dataset.py --start-date 2024-01-01 --end-date 2024-01-31 --output-dir ./data/raw
+python dataset.py --start-date 2024-01-01 --end-date 2024-01-02 --output-dir ./data/raw/2024
+```
+
+This is the command for the 2024 data.
+```bash
+python dataset.py --start-date 2024-01-01 --end-date 2024-01-02 --output-dir ./data/raw/2024
 ```
 
 | Flag | Default | Description |
@@ -54,8 +59,23 @@ Custom input/output:
 python preprocess.py --input-dir ./data/raw --output-dir ./data/cleaned
 ```
 
+This is the command for the 2024 data.
+```bash
+python preprocess.py --input-dir ./data/raw/2024 --output-dir ./data/cleaned/2024
+```
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--input-dir`, `-i` | `./data/raw` | Directory of raw .jsonl from dataset.py |
 | `--output-dir`, `-o` | `./data/cleaned` | Directory to write preprocessed .jsonl |
+
+---
+
+#### (Optional) Browse comments (Markdown per repo) (`browse_comments.py`)
+
+Convert preprocessed JSONL to one Markdown file per repo, **organized by date**, for scrolling through comments with full metadata (id, repo, created_at, type, author_association, tokens, cleaned_text). Writes one `.md` per `.jsonl` into the same directory.
+
+```bash
+python browse_comments.py data/cleaned/2024
+```
 

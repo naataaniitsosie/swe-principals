@@ -12,6 +12,7 @@ from preprocessing.filters import is_bot_or_ci, is_trivial_comment
 from preprocessing.text_cleaner import (
     strip_code_blocks,
     strip_diff_snippets,
+    strip_images as strip_images_text,
     lowercase,
     tokenize,
 )
@@ -57,6 +58,12 @@ def strip_code(ctx: Context) -> Optional[Context]:
     return ctx
 
 
+def strip_images(ctx: Context) -> Optional[Context]:
+    """Strip markdown images ![alt](url) and [image](url) from text."""
+    ctx.cleaned_text = strip_images_text(ctx.cleaned_text or ctx.text or "")
+    return ctx
+
+
 def strip_diff(ctx: Context) -> Optional[Context]:
     """Strip diff snippet lines from cleaned text."""
     ctx.cleaned_text = strip_diff_snippets(ctx.cleaned_text or ctx.text or "")
@@ -90,6 +97,23 @@ def finalize(ctx: Context) -> Optional[Context]:
     return ctx
 
 
+def slim_output(ctx: Context) -> Optional[Context]:
+    """Keep only pertinent fields: id, cleaned_text, repo, created_at, type, author_association, tokens."""
+    ev = ctx.event
+    repo = ev.get("repo") or {}
+    repo_name = repo.get("name", "") if isinstance(repo, dict) else ""
+    ctx.event = {
+        "id": ev.get("id"),
+        "cleaned_text": ctx.cleaned_text or ev.get("cleaned_text", ""),
+        "repo": repo_name,
+        "created_at": ev.get("created_at"),
+        "type": ev.get("type"),
+        "author_association": _get_author_association(ev),
+        "tokens": ctx.tokens or ev.get("tokens", []),
+    }
+    return ctx
+
+
 class Workflow:
     """Run a chain of steps on each event. Steps are applied in order; None from any step drops the event."""
 
@@ -111,15 +135,30 @@ class Workflow:
 
 
 def default_workflow() -> Workflow:
-    """CONFORMITY.md preprocessing: filter bot, extract text, filter trivial, strip code/diff, lowercase, tokenize, min tokens."""
+    """CONFORMITY.md preprocessing: filter bot, extract text, filter trivial, strip code/diff, lowercase, tokenize, min tokens, slim output."""
     return Workflow([
         filter_bot,
         extract_text,
         filter_trivial,
         strip_code,
+        strip_images,
         strip_diff,
         normalize_lowercase,
         tokenize_text,
         lambda ctx: filter_min_tokens(ctx, min_tokens=2),
         finalize,
+        slim_output,
     ])
+
+# --- Helpers (not workflow steps) ---
+
+def _get_author_association(event: Dict[str, Any]) -> str:
+    """Extract author_association from payload (comment, review, or pull_request). Used by slim_output."""
+    payload = event.get("payload") or {}
+    return (
+        payload.get("comment", {}).get("author_association")
+        or payload.get("review", {}).get("author_association")
+        or payload.get("pull_request", {}).get("author_association")
+        or payload.get("issue", {}).get("author_association")
+        or ""
+    )

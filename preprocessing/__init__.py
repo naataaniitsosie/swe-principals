@@ -12,11 +12,13 @@ from preprocessing.workflow import (
     filter_bot,
     filter_trivial,
     strip_code,
+    strip_images,
     strip_diff,
     normalize_lowercase,
     tokenize_text,
     filter_min_tokens,
     finalize,
+    slim_output,
 )
 
 __all__ = [
@@ -29,9 +31,11 @@ __all__ = [
     "filter_bot",
     "filter_trivial",
     "strip_code",
+    "strip_images",
     "strip_diff",
     "normalize_lowercase",
     "tokenize_text",
     "filter_min_tokens",
     "finalize",
+    "slim_output",
 ]
