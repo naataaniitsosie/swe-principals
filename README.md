@@ -88,12 +88,9 @@ sqlite3 data/raw/events.db "SELECT date(json_extract(event_data, '$.created_at')
 
 #### (Optional) Browse comments (Markdown per repo) (`browse_comments.py`)
 
-Convert preprocessed `events.db` to one Markdown file per repo, **organized by date**, for scrolling through comments with full metadata (id, repo, created_at, type, author_association, tokens, cleaned_text). Writes one `.md` per repo into the directory you pass (default: config `DATA_DIR`).
+Convert preprocessed events from the DB at **project_config** path to one Markdown file per repo, organized by date. Writes `.md` files into `DATA_DIR`. No CLI options. Uses the `cleaned` table if present, else `events`.
 
 ```bash
 python browse_comments.py
-python browse_comments.py ./data/raw
 ```
-
-Uses the `cleaned` table if present, else `events`.
 

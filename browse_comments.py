@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
 Convert preprocessed events from the single SQLite DB to Markdown files per repo,
-organized by date. Use for scrolling through comments with full metadata.
+organized by date. Uses project_config for DB and output directory. No CLI options.
 """
-import argparse
 import json
 import sqlite3
 from pathlib import Path
 from collections import defaultdict
 from typing import List
 
-from project_config import DATA_DIR
+from project_config import DATA_DIR, db_path
 
 
 def _table_for_db(conn: sqlite3.Connection) -> str:
@@ -95,42 +94,20 @@ def records_to_md(records: List[dict], repo_label: str) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Convert preprocessed SQLite DB to one Markdown file per repo, organized by date."
-    )
-    parser.add_argument(
-        "dir",
-        type=Path,
-        nargs="?",
-        default=DATA_DIR,
-        help="Directory containing events.db; one .md per repo written here (default: from project_config)",
-    )
-    parser.add_argument(
-        "--db",
-        type=Path,
-        default=None,
-        metavar="DIR",
-        help="Use this directory for events.db instead of dir",
-    )
-    args = parser.parse_args()
+    data_dir = Path(DATA_DIR)
+    path_to_db = db_path()
+    if not data_dir.is_dir():
+        raise SystemExit(f"Data directory does not exist: {data_dir} (set DATA_DIR in project_config.py)")
+    if not path_to_db.exists():
+        raise SystemExit(f"Database not found: {path_to_db}")
 
-    from dataset_readers.gharchive.storage import DEFAULT_DB_FILENAME
-    input_dir = args.dir
-    if not input_dir.is_dir():
-        raise SystemExit(f"Not a directory: {input_dir}")
-    db_dir = args.db if args.db is not None else input_dir
-    db_path = db_dir / DEFAULT_DB_FILENAME
-    if not db_path.exists():
-        raise SystemExit(f"Database not found: {db_path}")
-
-    by_repo = load_records_by_repo(db_path)
+    by_repo = load_records_by_repo(path_to_db)
     for repo, records in sorted(by_repo.items()):
         if not records:
             continue
-        repo_label = repo
-        md_content = records_to_md(records, repo_label)
+        md_content = records_to_md(records, repo)
         safe_name = repo.replace("/", "_")
-        out_path = input_dir / f"{safe_name}.md"
+        out_path = data_dir / f"{safe_name}.md"
         out_path.write_text(md_content, encoding="utf-8")
         print(f"Wrote {out_path.name} ({len(records)} comments)")
 
