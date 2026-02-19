@@ -5,8 +5,8 @@ Pluggable readers for different GitHub event data sources.
 Usage:
     from dataset_readers import get_reader, list_readers
 
-    reader = get_reader("gharchive", repository=..., start_date=..., ...)
-    path = reader.extract()
+    reader = get_reader("gharchive", repositories=[...], start_date=..., ...)
+    output_files = reader.extract()  # list of (repo_full_name, path)
 """
 from dataset_readers.base import DatasetReaderBase
 from dataset_readers.registry import (

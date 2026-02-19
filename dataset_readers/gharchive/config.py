@@ -1,5 +1,6 @@
 """
 Configuration for GHArchive data extraction.
+Repositories match CONFORMITY.md "Repositories Under Investigation".
 """
 from dataclasses import dataclass
 from typing import List
@@ -11,7 +12,7 @@ from dataset_readers.config import RepositoryConfig
 @dataclass
 class ExtractionConfig:
     """Configuration for GHArchive extraction process."""
-    repository: RepositoryConfig
+    repositories: List[RepositoryConfig]
     start_date: datetime
     end_date: datetime
     event_types: List[str]
@@ -22,16 +23,27 @@ class ExtractionConfig:
             raise ValueError("start_date must be before end_date")
         if not self.event_types:
             raise ValueError("event_types cannot be empty")
+        if not self.repositories:
+            raise ValueError("repositories cannot be empty")
 
 
-EXPRESSJS_CONFIG = ExtractionConfig(
-    repository=RepositoryConfig(owner="expressjs", name="express"),
-    start_date=datetime(2023, 1, 1),
-    end_date=datetime(2024, 12, 31),
-    event_types=[
-        "PullRequestEvent",
-        "PullRequestReviewEvent",
-        "PullRequestReviewCommentEvent",
-        "IssueCommentEvent",
-    ],
-)
+# Repositories under investigation (CONFORMITY.md). Use exact owner/repo for GHArchive filter.
+REPOSITORIES: List[RepositoryConfig] = [
+    RepositoryConfig(owner="expressjs", name="express"),
+    RepositoryConfig(owner="nestjs", name="nest"),
+    RepositoryConfig(owner="koajs", name="koa"),
+    RepositoryConfig(owner="fastify", name="fastify"),
+    RepositoryConfig(owner="hapijs", name="hapi"),
+    RepositoryConfig(owner="spring-projects", name="spring-boot"),
+    RepositoryConfig(owner="tiangolo", name="fastapi"),
+    RepositoryConfig(owner="django", name="django"),
+    RepositoryConfig(owner="pallets", name="flask"),
+    RepositoryConfig(owner="gin-gonic", name="gin"),
+]
+
+DEFAULT_EVENT_TYPES = [
+    "PullRequestEvent",
+    "PullRequestReviewEvent",
+    "PullRequestReviewCommentEvent",
+    "IssueCommentEvent",
+]

@@ -1,9 +1,10 @@
 """
 GHArchive dataset reader.
 Wraps DataExtractor for the dataset_readers plugin interface.
+Fetches each hour once and writes one file per repository.
 """
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from dataset_readers.base import DatasetReaderBase
 from dataset_readers.config import RepositoryConfig
@@ -21,7 +22,7 @@ class GHArchiveReader(DatasetReaderBase):
 
     def __init__(
         self,
-        repository: RepositoryConfig,
+        repositories: List[RepositoryConfig],
         start_date: datetime,
         end_date: datetime,
         event_types: List[str],
@@ -29,7 +30,7 @@ class GHArchiveReader(DatasetReaderBase):
         **kwargs: Any,
     ):
         config = ExtractionConfig(
-            repository=repository,
+            repositories=repositories,
             start_date=start_date,
             end_date=end_date,
             event_types=event_types,
@@ -37,7 +38,8 @@ class GHArchiveReader(DatasetReaderBase):
         )
         self._extractor = DataExtractor(config)
 
-    def extract(self, **kwargs: Any) -> str:
+    def extract(self, **kwargs: Any) -> List[Tuple[str, str]]:
+        """Returns list of (repo_full_name, file_path)."""
         return self._extractor.extract()
 
     def load_events(self, file_path: str) -> List[Dict[str, Any]]:

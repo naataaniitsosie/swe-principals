@@ -1,12 +1,13 @@
 """
 Data extraction entry point.
-Extract ExpressJS PR event data via dataset readers (default: GHArchive).
+Extract PR event data via dataset readers (default: GHArchive).
+Repositories match CONFORMITY.md "Repositories Under Investigation".
 """
 import argparse
 import logging
 from datetime import datetime
 
-from dataset_readers.config import RepositoryConfig
+from dataset_readers.gharchive.config import REPOSITORIES, DEFAULT_EVENT_TYPES
 from dataset_readers import (
     get_reader,
     get_default_reader_name,
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Extract ExpressJS pull request data for sentiment analysis.",
+        description="Extract pull request data for conformity/sentiment analysis.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Available readers: {', '.join(list_readers())}",
     )
@@ -57,29 +58,24 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    repository = RepositoryConfig(owner="expressjs", name="express")
+    repositories = REPOSITORIES
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
     end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
-    event_types = [
-        "PullRequestEvent",
-        "PullRequestReviewEvent",
-        "PullRequestReviewCommentEvent",
-        "IssueCommentEvent",
-    ]
+    event_types = DEFAULT_EVENT_TYPES
 
     logger.info("=" * 60)
-    logger.info("ExpressJS Sentiment Analysis - Data Extraction")
+    logger.info("GitHub Pull Request - Data Extraction")
     logger.info("=" * 60)
     logger.info(f"Dataset reader: {args.dataset_reader}")
-    logger.info(f"Repository: {repository.full_name}")
-    logger.info(f"Date range: {start_date.date()} to {end_date.date()}")
-    logger.info(f"Event types: {', '.join(event_types)}")
+    logger.info("Repositories: %d — %s", len(repositories), ", ".join(r.full_name for r in repositories))
+    logger.info("Date range: %s to %s", start_date.date(), end_date.date())
+    logger.info("Event types: %s", ", ".join(event_types))
     logger.info("=" * 60)
 
     try:
         reader = get_reader(
             args.dataset_reader,
-            repository=repository,
+            repositories=repositories,
             start_date=start_date,
             end_date=end_date,
             event_types=event_types,
@@ -88,32 +84,29 @@ def main() -> int:
     except KeyError as e:
         logger.error(str(e))
         return 1
-
-    try:
-        output_file = reader.extract()
-
-        logger.info("=" * 60)
-        logger.info("Extraction Complete!")
-        logger.info(f"Data saved to: {output_file}")
-        logger.info("=" * 60)
-
-        if hasattr(reader, "load_events"):
-            try:
-                events = reader.load_events(output_file)
-                logger.info(f"\nTotal events extracted: {len(events)}")
-                if events:
-                    sample = events[0]
-                    logger.info("\nSample event:")
-                    logger.info(f"  Type: {sample.get('type')}")
-                    logger.info(f"  Actor: {sample.get('actor', {}).get('login')}")
-                    logger.info(f"  Created: {sample.get('created_at')}")
-            except NotImplementedError:
-                pass
-
-    except Exception as e:
-        logger.error(f"Extraction failed: {e}", exc_info=True)
+    except TypeError as e:
+        logger.error("Reader does not support repositories= (e.g. bigquery): %s", e)
         return 1
 
+    try:
+        output_files = reader.extract()
+        for name, path in output_files:
+            logger.info("Extracted %s -> %s", name, path)
+            if hasattr(reader, "load_events"):
+                try:
+                    events = reader.load_events(path)
+                    logger.info("  Events: %d", len(events))
+                except NotImplementedError:
+                    pass
+    except Exception as e:
+        logger.error("Extraction failed: %s", e, exc_info=True)
+        return 1
+
+    logger.info("=" * 60)
+    logger.info("Extraction complete for %d repository(ies)", len(output_files))
+    for name, path in output_files:
+        logger.info("  %s -> %s", name, path)
+    logger.info("=" * 60)
     return 0
 
 

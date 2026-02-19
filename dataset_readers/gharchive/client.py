@@ -6,7 +6,7 @@ import gzip
 import json
 import requests
 from datetime import datetime, timedelta
-from typing import Iterator, List, Dict, Any
+from typing import Iterator, List, Dict, Any, Optional, Set
 from abc import ABC, abstractmethod
 import logging
 
@@ -47,33 +47,59 @@ class GHArchiveClient:
     def _construct_url(self, date: datetime, hour: int) -> str:
         return f"{self.BASE_URL}/{date.year}-{date.month:02d}-{date.day:02d}-{hour}.json.gz"
 
-    def fetch_hour_data(self, date: datetime, hour: int) -> List[Dict[str, Any]]:
+    def fetch_hour_data(
+        self,
+        date: datetime,
+        hour: int,
+        repo_names: Optional[Set[str]] = None,
+        event_types: Optional[Set[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch one hour of events. If repo_names and event_types are set, only return
+        events that match (filter while streaming so we don't hold the full hour in memory).
+        """
         url = self._construct_url(date, hour)
-        logger.info(f"Fetching data from {url}")
+        logger.info("Fetching %s", url)
 
         try:
             response = self.http_client.get(url, stream=True)
             response.raise_for_status()
 
             events = []
+            repo_names_lower = {n.lower() for n in (repo_names or set())}
+            event_types_set = event_types or set()
+            do_filter = bool(repo_names_lower and event_types_set)
+
             with gzip.GzipFile(fileobj=response.raw) as f:
                 for line in f:
-                    if line.strip():
-                        try:
-                            events.append(json.loads(line))
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"Failed to parse JSON line: {e}")
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        logger.warning("Failed to parse JSON line: %s", e)
+                        continue
+                    if do_filter:
+                        repo_name = (event.get("repo") or {}).get("name") or ""
+                        if repo_name.lower() not in repo_names_lower:
                             continue
+                        if event.get("type") not in event_types_set:
+                            continue
+                    events.append(event)
 
-            logger.info(f"Fetched {len(events)} events from {url}")
+            logger.info("Fetched %s events from %s", len(events), url)
             return events
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch data from {url}: {e}")
+            logger.error("Failed to fetch data from %s: %s", url, e)
             raise
 
     def fetch_date_range(
-        self, start_date: datetime, end_date: datetime
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        repo_names: Optional[Set[str]] = None,
+        event_types: Optional[Set[str]] = None,
     ) -> Iterator[List[Dict[str, Any]]]:
         current_date = start_date
 
@@ -84,12 +110,19 @@ class GHArchiveClient:
                     return
 
                 try:
-                    events = self.fetch_hour_data(current_date, hour)
+                    events = self.fetch_hour_data(
+                        current_date,
+                        hour,
+                        repo_names=repo_names,
+                        event_types=event_types,
+                    )
                     if events:
                         yield events
                 except requests.RequestException:
                     logger.warning(
-                        f"Skipping {current_date.date()} hour {hour} due to fetch error"
+                        "Skipping %s hour %s due to fetch error",
+                        current_date.date(),
+                        hour,
                     )
                     continue
 

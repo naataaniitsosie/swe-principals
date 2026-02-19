@@ -25,9 +25,10 @@ class DatasetReaderBase(ABC):
         pass
 
     @abstractmethod
-    def extract(self, **kwargs: Any) -> str:
+    def extract(self, **kwargs: Any):
         """
-        Execute extraction. Returns path to saved data file.
+        Execute extraction. Returns path to saved data file, or list of (repo_full_name, path)
+        when extracting multiple repositories.
         """
         pass
 

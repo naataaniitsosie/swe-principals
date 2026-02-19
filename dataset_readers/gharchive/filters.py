@@ -4,7 +4,7 @@ Filters for GHArchive events.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 
-from dataset_readers.gharchive.models import GitHubEvent, EventType
+from dataset_readers.gharchive.models import GitHubEvent
 
 
 class EventFilter(ABC):
@@ -15,15 +15,15 @@ class EventFilter(ABC):
         pass
 
 
-class RepositoryFilter(EventFilter):
-    """Filter events by repository name."""
+class RepositoriesFilter(EventFilter):
+    """Filter events by repository name (any of the given repos)."""
 
-    def __init__(self, repo_full_name: str):
-        self.repo_full_name = repo_full_name.lower()
+    def __init__(self, repo_full_names: List[str]):
+        self.repo_full_names = {n.lower() for n in repo_full_names}
 
     def matches(self, event: Dict[str, Any]) -> bool:
         repo_name = event.get("repo", {}).get("name", "").lower()
-        return repo_name == self.repo_full_name
+        return repo_name in self.repo_full_names
 
 
 class EventTypeFilter(EventFilter):

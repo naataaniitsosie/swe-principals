@@ -36,7 +36,7 @@ The POC extracts the following event types for PR sentiment analysis:
 | `PR_REVIEW_COMMENT` | `PullRequestReviewCommentEvent` | Inline comments on PR diff |
 | `ISSUE_COMMENT` | `IssueCommentEvent` | Comments on PRs (PRs are issues) |
 
-**Configuration:** Event types are defined in [`dataset_readers/gharchive/config.py`](dataset_readers/gharchive/config.py) (`EXPRESSJS_CONFIG.event_types`) and the `EventType` enum in [`dataset_readers/gharchive/models.py`](dataset_readers/gharchive/models.py).
+**Configuration:** Event types are defined in [`dataset_readers/gharchive/config.py`](dataset_readers/gharchive/config.py) (`DEFAULT_EVENT_TYPES`) and the `EventType` enum in [`dataset_readers/gharchive/models.py`](dataset_readers/gharchive/models.py).
 
 #### Why not Kaggle GitHub Repos?
 The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] dataset is a static snapshot of GitHub repositories, which focuses on the codebase and repository metadata rather than the dynamic interactions and contributions made through pull requests. For analyzing sentiments in pull requests, a dataset that captures the temporal and interactive nature of contributions is essential. GHArchive provides a more comprehensive view of the ongoing development activities, making it more suitable for this analysis.
@@ -50,7 +50,7 @@ The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] d
 #### Repositories Under Investigation
 API frameworks have a long history of standardized conventions and best practices. In addition, they are strictly governed by their maintainers and community [citation needed], which makes them a natural fit for this study.
 
-**Note:** Use the exact `owner/repo` value when filtering in GHArchive (e.g. `RepositoryFilter`).
+**Note:** Use the exact `owner/repo` value when filtering in GHArchive (e.g. `RepositoriesFilter`).
 
 | Repository (GHArchive filter) | Description | Language | Is Open Source? | Date Created (verified) |
 |------------------------------|-------------|----------|-----------------|-------------------------|
@@ -65,6 +65,27 @@ API frameworks have a long history of standardized conventions and best practice
 | [pallets/flask](https://github.com/pallets/flask) | Web framework for Python | Python | Yes | 2010-04-06 |
 | [gin-gonic/gin](https://github.com/gin-gonic/gin) | Web framework for Go | Go | Yes | 2014-07-25 |
 
+#### Approximate data volume (all 10 repos, 2024 + 2025)
+
+With the default config (4 event types: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`), for **2024-01-01 through 2025-12-31** and all 10 repositories, the extractor fetches each hour once and partitions events by repo (one output file per repo):
+
+| Metric | Approximate |
+|--------|-------------|
+| **Time range** | 731 days → 17,544 hourly files |
+| **Download** | Each hour is fetched **once** (for all repos). Raw hourly `.json.gz` files are ~100–150 MB each → **~1.7–2.6 TB** downloaded. |
+| **Output (saved)** | Only events that match one of the 10 repos and one of the 4 event types. Roughly **tens of thousands to low hundreds of thousands** of events total (e.g. 50k–300k), **~100 MB–1.5 GB** on disk (JSONL, one file per repo). |
+
+To get real numbers, run a short test and scale up:
+
+```bash
+python dataset.py --start-date 2024-06-01 --end-date 2024-06-02 --output-dir ./data/raw
+```
+Once tested, use the full date range and output directory.
+```bash
+python dataset.py --start-date 2024-01-01 --end-date 2025-12-31 --output-dir ./data/2024-2025-raw
+```
+
+Check event counts in the logs and output file sizes; multiply by (731 / 2) for a rough full 2024+2025 extrapolation.
 
 ### Phase 1 — Surface-Level Conformity Detection (No LLM)
 
