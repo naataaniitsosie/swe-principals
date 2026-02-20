@@ -1,7 +1,6 @@
 """
-Preprocess PR event data produced by dataset.py (CONFORMITY.md Preprocessing).
-Reads from the SQLite DB at project config path (events table); writes cleaned table to same DB.
-No CLI options: DB location is from project_config.py (DATA_DIR / DB_FILENAME).
+Preprocess PR events: read from events table, run filtering and text cleaning, write cleaned table.
+Steps: dedupe by id, drop bot/CI and trivial comments, extract text, strip code/images/diff, lowercase and tokenize, drop if < 2 tokens; output slim records (id, cleaned_text, repo, created_at, type, author_association, tokens). DB path from project_config (DATA_DIR / DB_FILENAME). No CLI options.
 """
 import logging
 from pathlib import Path

@@ -81,7 +81,7 @@ sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo'), COUNT(*) 
 
 ### 2. Preprocess data (`preprocess.py`)
 
-Preprocess the single SQLite DB produced by `dataset.py` (CONFORMITY.md Preprocessing): **dedupe by event id** (keep first), remove bot and CI comments, strip code blocks and diff snippets, drop trivial comments (e.g. “LGTM”, “Thanks!”), lowercase and tokenize. Reads **events** and writes the **cleaned** table (see [Database and table schema](#database-and-table-schema)). No CLI options. Each output record has `cleaned_text` and `tokens`; events with no semantic value are dropped.
+Preprocess the single SQLite DB produced by `dataset.py`. Reads **events**, dedupes by event `id` (keep first), then per event: drop bot/CI and trivial comments, extract text, strip code blocks and images and diff snippets, lowercase and tokenize, drop if fewer than 2 tokens; writes slim records to **cleaned** (see [Database and table schema](#database-and-table-schema)). No CLI options. Details: [CONFORMITY.md § Preprocessing](papers/CONFORMITY.md) and `preprocessing/workflow.py` (`default_workflow`).
 
 ```bash
 python preprocess.py

@@ -135,7 +135,7 @@ class Workflow:
 
 
 def default_workflow() -> Workflow:
-    """CONFORMITY.md preprocessing: filter bot, extract text, filter trivial, strip code/diff, lowercase, tokenize, min tokens, slim output."""
+    """Filter bot/CI, extract text, filter trivial, strip code/images/diff, lowercase, tokenize, drop if < 2 tokens, slim output."""
     return Workflow([
         filter_bot,
         extract_text,

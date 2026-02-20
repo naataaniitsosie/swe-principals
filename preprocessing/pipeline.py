@@ -1,7 +1,6 @@
 """
-Pipeline to clean dataset_reader output (CONFORMITY.md Preprocessing).
-Reads from the single SQLite DB (events table: id + event_data), writes cleaned table to same DB.
-DB path is from project config (preprocess.py passes DATA_DIR).
+Pipeline: read events table, run workflow per event (dedupe by id, filter, clean text, slim output), write cleaned table to same DB.
+DB path from project config (preprocess.py passes DATA_DIR). See preprocessing/workflow.default_workflow() for steps.
 """
 import json
 import sqlite3

@@ -1,6 +1,6 @@
 """
-Preprocessing for PR comment data (CONFORMITY.md).
-Chainable workflow: remove bots/CI, trivial comments; strip code/diff; lowercase and tokenize.
+Preprocessing for PR comment data: chainable workflow over events.
+Steps: filter bot/CI, extract text, filter trivial, strip code blocks and images and diff snippets, lowercase and tokenize, filter min tokens, output slim record. See workflow.default_workflow() and papers/CONFORMITY.md.
 """
 from preprocessing.pipeline import CleanerPipeline
 from preprocessing.workflow import (

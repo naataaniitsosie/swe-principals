@@ -42,10 +42,16 @@ The POC extracts the following event types for PR sentiment analysis:
 The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] dataset is a static snapshot of GitHub repositories, which focuses on the codebase and repository metadata rather than the dynamic interactions and contributions made through pull requests. For analyzing sentiments in pull requests, a dataset that captures the temporal and interactive nature of contributions is essential. GHArchive provides a more comprehensive view of the ongoing development activities, making it more suitable for this analysis.
 
 #### Preprocessing
-- Remove bot and CI comments  
-- Strip code blocks and diff snippets  
-- Lowercase and tokenize text  
-- Remove trivial comments (e.g., “LGTM”, “Thanks!”)
+Applied per event in order; events that fail a step are dropped. Reads from **events**, writes to **cleaned** in the same DB.
+
+1. **Deduplicate** by event `id` (keep first occurrence).
+2. **Filter:** drop if actor is bot or CI (login matches e.g. `[bot]`, `github-actions`, `dependabot`).
+3. **Extract text** from event (comment body, review body, or PR title+body); drop if missing or empty.
+4. **Filter:** drop trivial comments (e.g. "LGTM", "Thanks!", "approved", "👍").
+5. **Strip** markdown code blocks, markdown images (e.g. `![alt](url)`), and diff snippet lines (lines starting with `+` or `-`).
+6. **Normalize:** lowercase and collapse whitespace.
+7. **Tokenize** (word-boundary split); **filter:** drop if fewer than 2 tokens.
+8. **Output** slim record to **cleaned**: `id`, `cleaned_text`, `repo`, `created_at`, `type`, `author_association`, `tokens`.
 
 #### Repositories Under Investigation
 API frameworks have a long history of standardized conventions and best practices. In addition, they are strictly governed by their maintainers and community [citation needed], which makes them a natural fit for this study.
@@ -282,15 +288,15 @@ Flags for `dataset.py`:
 
 Data are obtained from the public GitHub event stream via GHArchive (https://www.gharchive.org/), which provides hourly archives of the GitHub public API timeline. The collection pipeline requests one hourly file per time slot over the chosen date range. Each archive is a gzipped JSON file containing one JSON object per line; the client filters events *in stream* by repository (owner/name) and by event type, so that only events belonging to the repositories under investigation and to the selected types (e.g., `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`) are retained. This reduces memory and disk use while preserving the full payload of each retained event.
 
-All retained events are written to a **single SQLite database** (one file per project, e.g. `events.db`). Deduplication is handled at write time: each event has a unique `id` (GitHub event id). The schema uses two tables, both with columns `id` (primary key) and `event_data` (a JSON blob containing the full event). The **events** table holds the raw, unfiltered (by content) event set. During preprocessing, a second table, **cleaned**, is populated in the same database. The preprocessing step reads from **events**, deduplicates again by `id` (keeping the first occurrence), applies text cleaning and filtering (e.g., removal of bot and trivial comments, stripping of code blocks), and writes the resulting records to **cleaned**. Thus, SQLite is used both to (1) deduplicate across runs and within the raw stream via `INSERT OR REPLACE` on `id` when appending to **events**, and (2) to separate raw versus cleaned data via the two tables, while keeping a single database file for the entire dataset.
+All retained events are written to a **single SQLite database** (one file per project, e.g. `events.db`). Deduplication is handled at write time: each event has a unique `id` (GitHub event id). The schema uses two tables, both with columns `id` (primary key) and `event_data` (a JSON blob containing the full event). The **events** table holds the raw, unfiltered (by content) event set. During preprocessing, a second table, **cleaned**, is populated in the same database. The preprocessing step reads from **events**, deduplicates by `id` (keeping the first occurrence), then for each event: drops bot/CI and trivial comments, extracts text, strips code blocks and images and diff snippets, lowercases and tokenizes, drops events with fewer than 2 tokens, and writes slim records (id, cleaned_text, repo, created_at, type, author_association, tokens) to **cleaned**. Thus, SQLite is used both to (1) deduplicate across runs and within the raw stream via `INSERT OR REPLACE` on `id` when appending to **events**, and (2) to separate raw versus cleaned data via the two tables, while keeping a single database file for the entire dataset.
 
 ---
 
 ### Appendix B: Visualizing Sample Data Using Markdown
 
-To support qualitative inspection and sharing of sample data, the pipeline can export the cleaned (or raw) event set to **one Markdown file per repository**. Each file is organized by calendar date; under each date, comments are listed in chronological order and numbered. Each record is rendered as a short metadata block (event id, repository, timestamp, event type, author association, and token list) followed by the cleaned text. This format is intended for scrolling, searching, and copy-pasting into analysis or annotation tools.
+To support qualitative inspection and sharing of sample data, the pipeline exports the **cleaned** event set to **one Markdown file per repository**. Each file shows a total count, then is organized by calendar date; under each date, comments are listed in chronological order and numbered. Each record is rendered as a metadata block (id, repo, created_at, type, author_association, tokens) followed by **cleaned_text:** and the cleaned text. This format is intended for scrolling, searching, and copy-pasting into analysis or annotation tools.
 
-The export is produced by the script `browse_comments.py`, which reads from the project SQLite database (using the **cleaned** table when present, otherwise **events**), groups records by repository, and writes one `.md` file per repo into the project data directory. No manual directory selection is required; paths are taken from the project configuration.
+The export is produced by the script `browse_comments.py`, which reads from the **cleaned** table, groups records by repository, and writes one `.md` file per repo into the project data directory. No manual directory selection is required; paths are taken from the project configuration.
 
 **Example (abbreviated).** The following illustrates the structure of a generated Markdown file. A researcher can copy and paste such snippets into a manuscript or appendix.
 
@@ -308,7 +314,8 @@ The export is produced by the script `browse_comments.py`, which reads from the 
 - **author_association:** MEMBER
 - **tokens:** ['thanks', 'can', 'you', 'allow', 'edits', 'from', 'maintainers', ...]
 
-@1zzowiebeha Thanks :+1: Can you allow edits from maintainers? I want to push small final edits.
+**cleaned_text:**
+thanks can you allow edits from maintainers i want to push small final edits
 
 ---
 
@@ -321,7 +328,8 @@ The export is produced by the script `browse_comments.py`, which reads from the 
 - **author_association:** MEMBER
 - **tokens:** ['thanks', 'approved']
 
-@ngnpope Thanks :+1:
+**cleaned_text:**
+thanks
 
 ---
 ```
