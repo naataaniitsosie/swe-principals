@@ -13,12 +13,8 @@ from project_config import DATA_DIR, db_path
 
 
 def _table_for_db(conn: sqlite3.Connection) -> str:
-    """Use cleaned if present, else events."""
-    cursor = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('cleaned','events') ORDER BY name DESC"
-    )
-    row = cursor.fetchone()
-    return row[0] if row else "events"
+    """Table to read from; always events."""
+    return "events"
 
 
 def _repo_from_record(rec: dict) -> str:
@@ -57,8 +53,27 @@ def date_from_created_at(created_at: str) -> str:
     return (created_at or "")[:10] if created_at else ""
 
 
+def _body_from_record(rec: dict) -> str:
+    """Get body text: from cleaned record, or extract from raw event payload."""
+    if rec.get("body"):
+        return rec.get("body") or ""
+    payload = rec.get("payload") or {}
+    ev_type = rec.get("type") or ""
+    if ev_type == "PullRequestEvent":
+        pr = payload.get("pull_request") or {}
+        title = pr.get("title", "")
+        body = pr.get("body", "")
+        return f"{title}\n{body}".strip() if body else (title or "")
+    if ev_type in ("IssueCommentEvent", "PullRequestReviewCommentEvent"):
+        return (payload.get("comment") or {}).get("body", "")
+    if ev_type == "PullRequestReviewEvent":
+        return (payload.get("review") or {}).get("body", "")
+    return ""
+
+
 def record_to_md(rec: dict, number: int) -> str:
-    """Format one record as Markdown: number, metadata block + cleaned text."""
+    """Format one record as Markdown: number, metadata block, body, and cleaned text."""
+    body_text = _body_from_record(rec)
     lines = [
         f"### {number}.",
         "",
@@ -69,7 +84,11 @@ def record_to_md(rec: dict, number: int) -> str:
         f"- **author_association:** {rec.get('author_association', '')}",
         f"- **tokens:** {rec.get('tokens', [])}",
         "",
-        rec.get("cleaned_text") or "",
+        "**body:**",
+        body_text or "(empty)",
+        "",
+        "**cleaned_text:**",
+        rec.get("cleaned_text") or "(empty)",
         "",
         "---",
         "",
@@ -85,7 +104,10 @@ def records_to_md(records: List[dict], repo_label: str) -> str:
         if d:
             by_date[d].append(rec)
 
-    parts = [f"# Repo: {repo_label}\n"]
+    parts = [
+        f"# Repo: {repo_label}\n",
+        f"**Total:** {len(records)}\n",
+    ]
     for date in sorted(by_date.keys()):
         parts.append(f"## {date}\n")
         for i, rec in enumerate(by_date[date], start=1):

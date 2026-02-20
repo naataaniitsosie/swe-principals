@@ -89,21 +89,23 @@ def filter_min_tokens(ctx: Context, min_tokens: int = 2) -> Optional[Context]:
 
 
 def finalize(ctx: Context) -> Optional[Context]:
-    """Add cleaned_text and tokens to event for output."""
+    """Add cleaned_text, tokens, and body (original text) to event for output."""
     out = dict(ctx.event)
     out["cleaned_text"] = ctx.cleaned_text or ""
     out["tokens"] = ctx.tokens
+    out["body"] = ctx.text or ""
     ctx.event = out
     return ctx
 
 
 def slim_output(ctx: Context) -> Optional[Context]:
-    """Keep only pertinent fields: id, cleaned_text, repo, created_at, type, author_association, tokens."""
+    """Keep only pertinent fields: id, body, cleaned_text, repo, created_at, type, author_association, tokens."""
     ev = ctx.event
     repo = ev.get("repo") or {}
     repo_name = repo.get("name", "") if isinstance(repo, dict) else ""
     ctx.event = {
         "id": ev.get("id"),
+        "body": ev.get("body", ""),
         "cleaned_text": ctx.cleaned_text or ev.get("cleaned_text", ""),
         "repo": repo_name,
         "created_at": ev.get("created_at"),
