@@ -16,3 +16,6 @@ __pycache__
 
 # PDFs of MD files
 *.pdf
+
+# MAC OS
+.DS_Store

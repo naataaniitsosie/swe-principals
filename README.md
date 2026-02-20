@@ -95,6 +95,9 @@ sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
 # Cleaned: by event type
 sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.type'), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 2 DESC;"
 
+# Rows per repo (cleaned: repo is inside event_data JSON)
+sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo') AS repo, COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 1;"
+
 # Cleaned: by date
 sqlite3 data/raw/events.db "SELECT date(json_extract(event_data, '$.created_at')), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 1;"
 ```
