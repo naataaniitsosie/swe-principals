@@ -11,7 +11,7 @@ events
 
 cleaned
     Preprocessed events (preprocess.py). Same schema: id (PK), event_data (JSON blob).
-    event_data holds the full cleaned event (repo, created_at, cleaned_text, tokens, etc.).
+    event_data JSON fields: id, cleaned_text, repo, created_at, type, author_association, tokens.
     Created only when preprocessing writes to the same DB.
 """
 import json

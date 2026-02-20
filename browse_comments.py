@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert preprocessed events from the single SQLite DB to Markdown files per repo,
+Convert preprocessed events from the SQLite DB (cleaned table) to Markdown files per repo,
 organized by date. Uses project_config for DB and output directory. No CLI options.
 """
 import json
@@ -12,13 +12,13 @@ from typing import List
 from project_config import DATA_DIR, db_path
 
 
-def _table_for_db(conn: sqlite3.Connection) -> str:
-    """Table to read from; always events."""
-    return "events"
+def _table_for_db() -> str:
+    """Table to read from; always cleaned."""
+    return "cleaned"
 
 
 def _repo_from_record(rec: dict) -> str:
-    """Repo name from record (cleaned: top-level repo; raw: repo.name)."""
+    """Repo name from record (cleaned table: repo is string)."""
     repo = rec.get("repo")
     if isinstance(repo, str):
         return repo
@@ -26,9 +26,9 @@ def _repo_from_record(rec: dict) -> str:
 
 
 def load_records_by_repo(db_path: Path) -> dict[str, List[dict]]:
-    """Load all records from DB (cleaned or events table), grouped by repo."""
+    """Load all records from DB cleaned table, grouped by repo."""
     conn = sqlite3.connect(str(db_path))
-    table = _table_for_db(conn)
+    table = _table_for_db()
     cursor = conn.execute(f"SELECT id, event_data FROM {table}")
     rows = [(row[0], row[1]) for row in cursor]
     conn.close()
@@ -53,27 +53,8 @@ def date_from_created_at(created_at: str) -> str:
     return (created_at or "")[:10] if created_at else ""
 
 
-def _body_from_record(rec: dict) -> str:
-    """Get body text: from cleaned record, or extract from raw event payload."""
-    if rec.get("body"):
-        return rec.get("body") or ""
-    payload = rec.get("payload") or {}
-    ev_type = rec.get("type") or ""
-    if ev_type == "PullRequestEvent":
-        pr = payload.get("pull_request") or {}
-        title = pr.get("title", "")
-        body = pr.get("body", "")
-        return f"{title}\n{body}".strip() if body else (title or "")
-    if ev_type in ("IssueCommentEvent", "PullRequestReviewCommentEvent"):
-        return (payload.get("comment") or {}).get("body", "")
-    if ev_type == "PullRequestReviewEvent":
-        return (payload.get("review") or {}).get("body", "")
-    return ""
-
-
 def record_to_md(rec: dict, number: int) -> str:
-    """Format one record as Markdown: number, metadata block, body, and cleaned text."""
-    body_text = _body_from_record(rec)
+    """Format one record as Markdown: number, metadata block, cleaned_text, tokens."""
     lines = [
         f"### {number}.",
         "",
@@ -83,9 +64,6 @@ def record_to_md(rec: dict, number: int) -> str:
         f"- **type:** {rec.get('type', '')}",
         f"- **author_association:** {rec.get('author_association', '')}",
         f"- **tokens:** {rec.get('tokens', [])}",
-        "",
-        "**body:**",
-        body_text or "(empty)",
         "",
         "**cleaned_text:**",
         rec.get("cleaned_text") or "(empty)",

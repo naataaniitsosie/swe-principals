@@ -9,6 +9,21 @@ Full DB path is `DATA_DIR / DB_FILENAME`. There is no CLI option to choose an ou
 
 ---
 
+## Database and table schema
+
+The DB is a single SQLite file (see **`dataset_readers/gharchive/storage.py`**). It has two tables; both use the same column layout: `id` (TEXT PRIMARY KEY), `event_data` (TEXT, JSON).
+
+| Table    | Written by        | Purpose |
+|----------|-------------------|--------|
+| **events**  | `dataset.py`      | Raw GitHub events from GHArchive. `event_data` is the full event (e.g. `repo`, `type`, `created_at`, `payload` with comment/review/PR data). |
+| **cleaned** | `preprocess.py`   | Preprocessed comments only. `event_data` is a slim JSON object with: `id`, `cleaned_text`, `repo`, `created_at`, `type`, `author_association`, `tokens`. |
+
+- **events** schema and extraction: **`dataset_readers/gharchive/storage.py`**, **`dataset.py`**.
+- **cleaned** schema (slim fields): **`preprocessing/workflow.py`** (`slim_output`).
+- Reading **cleaned** and writing Markdown per repo: **`browse_comments.py`**. Output files: `DATA_DIR/<owner>_<repo>.md` (e.g. `data/raw/django_django.md`).
+
+---
+
 ## Runnable scripts (pipeline)
 
 Run in order: **1. Extract** → **2. Preprocess** → **3. Analyze** (e.g. sentiment).
@@ -43,7 +58,7 @@ python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
 | `--start-date` | `2024-02-01` | Start date (YYYY-MM-DD) |
 | `--end-date` | `2024-02-02` | End date (YYYY-MM-DD) |
 
-Output is a single SQLite file `events.db` with an `events` table (columns: `id`, `event_data` JSON blob).
+Output is a single SQLite file `events.db` with an **events** table (see [Database and table schema](#database-and-table-schema)).
 
 **Stats with sqlite3** (default path `data/raw/events.db`):
 
@@ -66,7 +81,7 @@ sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo'), COUNT(*) 
 
 ### 2. Preprocess data (`preprocess.py`)
 
-Preprocess the single SQLite DB produced by `dataset.py` (CONFORMITY.md Preprocessing): **dedupe by event id** (keep first), remove bot and CI comments, strip code blocks and diff snippets, drop trivial comments (e.g. “LGTM”, “Thanks!”), lowercase and tokenize. Reads `events` from and writes the `cleaned` table to the DB at **project_config** `DATA_DIR` / `DB_FILENAME`. No CLI options. Each output record adds `cleaned_text` and `tokens`. Events with no semantic value are dropped.
+Preprocess the single SQLite DB produced by `dataset.py` (CONFORMITY.md Preprocessing): **dedupe by event id** (keep first), remove bot and CI comments, strip code blocks and diff snippets, drop trivial comments (e.g. “LGTM”, “Thanks!”), lowercase and tokenize. Reads **events** and writes the **cleaned** table (see [Database and table schema](#database-and-table-schema)). No CLI options. Each output record has `cleaned_text` and `tokens`; events with no semantic value are dropped.
 
 ```bash
 python preprocess.py
@@ -88,7 +103,7 @@ sqlite3 data/raw/events.db "SELECT date(json_extract(event_data, '$.created_at')
 
 #### (Optional) Browse comments (Markdown per repo) (`browse_comments.py`)
 
-Convert preprocessed events from the DB at **project_config** path to one Markdown file per repo, organized by date. Writes `.md` files into `DATA_DIR`. No CLI options. Uses the `cleaned` table if present, else `events`.
+Reads the **cleaned** table and writes one Markdown file per repo under `DATA_DIR`, organized by date (e.g. `data/raw/django_django.md`). No CLI options. See [Database and table schema](#database-and-table-schema).
 
 ```bash
 python browse_comments.py
