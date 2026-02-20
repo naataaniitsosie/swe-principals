@@ -47,11 +47,10 @@ Applied per event in order; events that fail a step are dropped. Reads from **ev
 1. **Deduplicate** by event `id` (keep first occurrence).
 2. **Filter:** drop if actor is bot or CI (login matches e.g. `[bot]`, `github-actions`, `dependabot`).
 3. **Extract text** from event (comment body, review body, or PR title+body); drop if missing or empty.
-4. **Filter:** drop trivial comments (e.g. "LGTM", "Thanks!", "approved", "👍").
-5. **Strip** markdown code blocks, markdown images (e.g. `![alt](url)`), and diff snippet lines (lines starting with `+` or `-`).
-6. **Normalize:** lowercase and collapse whitespace.
-7. **Tokenize** (word-boundary split); **filter:** drop if fewer than 2 tokens.
-8. **Output** slim record to **cleaned**: `id`, `cleaned_text`, `repo`, `created_at`, `type`, `author_association`, `tokens`.
+4. **Strip** markdown code blocks, markdown images (e.g. `![alt](url)`), and diff snippet lines (lines starting with `+` or `-`).
+5. **Normalize:** lowercase and collapse whitespace.
+6. **Tokenize** (word-boundary split); **filter:** drop if fewer than 2 tokens.
+7. **Output** slim record to **cleaned**: `id`, `cleaned_text`, `repo`, `created_at`, `type`, `author_association`, `tokens`.
 
 #### Repositories Under Investigation
 API frameworks have a long history of standardized conventions and best practices. In addition, they are strictly governed by their maintainers and community [citation needed], which makes them a natural fit for this study.

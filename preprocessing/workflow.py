@@ -139,7 +139,7 @@ def default_workflow() -> Workflow:
     return Workflow([
         filter_bot,
         extract_text,
-        filter_trivial,
+        # filter_trivial,
         strip_code,
         strip_images,
         strip_diff,
