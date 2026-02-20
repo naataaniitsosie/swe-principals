@@ -275,3 +275,55 @@ Flags for `dataset.py`:
 1. Harvest repository-specific conformity norms from data maintainers to supplement the dataset. For example, explore the [expressjs](https://github.com/expressjs/express) repository and extract the conformity norms from the repository.
 
 ## Conclusion
+
+## Appendix
+
+### Appendix A: Data Collection
+
+Data are obtained from the public GitHub event stream via GHArchive (https://www.gharchive.org/), which provides hourly archives of the GitHub public API timeline. The collection pipeline requests one hourly file per time slot over the chosen date range. Each archive is a gzipped JSON file containing one JSON object per line; the client filters events *in stream* by repository (owner/name) and by event type, so that only events belonging to the repositories under investigation and to the selected types (e.g., `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`) are retained. This reduces memory and disk use while preserving the full payload of each retained event.
+
+All retained events are written to a **single SQLite database** (one file per project, e.g. `events.db`). Deduplication is handled at write time: each event has a unique `id` (GitHub event id). The schema uses two tables, both with columns `id` (primary key) and `event_data` (a JSON blob containing the full event). The **events** table holds the raw, unfiltered (by content) event set. During preprocessing, a second table, **cleaned**, is populated in the same database. The preprocessing step reads from **events**, deduplicates again by `id` (keeping the first occurrence), applies text cleaning and filtering (e.g., removal of bot and trivial comments, stripping of code blocks), and writes the resulting records to **cleaned**. Thus, SQLite is used both to (1) deduplicate across runs and within the raw stream via `INSERT OR REPLACE` on `id` when appending to **events**, and (2) to separate raw versus cleaned data via the two tables, while keeping a single database file for the entire dataset.
+
+---
+
+### Appendix B: Visualizing Sample Data Using Markdown
+
+To support qualitative inspection and sharing of sample data, the pipeline can export the cleaned (or raw) event set to **one Markdown file per repository**. Each file is organized by calendar date; under each date, comments are listed in chronological order and numbered. Each record is rendered as a short metadata block (event id, repository, timestamp, event type, author association, and token list) followed by the cleaned text. This format is intended for scrolling, searching, and copy-pasting into analysis or annotation tools.
+
+The export is produced by the script `browse_comments.py`, which reads from the project SQLite database (using the **cleaned** table when present, otherwise **events**), groups records by repository, and writes one `.md` file per repo into the project data directory. No manual directory selection is required; paths are taken from the project configuration.
+
+**Example (abbreviated).** The following illustrates the structure of a generated Markdown file. A researcher can copy and paste such snippets into a manuscript or appendix.
+
+```markdown
+# Repo: django/django
+
+## 2024-01-01
+
+### 1.
+
+- **id:** 34499227501
+- **repo:** django/django
+- **created_at:** 2024-01-01T08:50:24Z
+- **type:** IssueCommentEvent
+- **author_association:** MEMBER
+- **tokens:** ['thanks', 'can', 'you', 'allow', 'edits', 'from', 'maintainers', ...]
+
+@1zzowiebeha Thanks :+1: Can you allow edits from maintainers? I want to push small final edits.
+
+---
+
+### 2.
+
+- **id:** 34499811339
+- **repo:** django/django
+- **created_at:** 2024-01-01T10:00:37Z
+- **type:** PullRequestReviewEvent
+- **author_association:** MEMBER
+- **tokens:** ['thanks', 'approved']
+
+@ngnpope Thanks :+1:
+
+---
+```
+
+To regenerate the Markdown files from the current database, run from the project root: `python browse_comments.py`.
