@@ -1,18 +1,44 @@
 # Conformity
 
-## Introduction
-Software Engineering (SE) is an expression of human thought and creativity. Naturally, biases and cultural norms are reflected in code artifacts, documentation, changelogs, reviews, comments, feedback, and other SE artifacts. The goals of this project is to explore and quanitfy "conformity" in SE pull request comments. The limited scope of this project is to explore the conformity of pull request comments, and not the conformity of code artifacts themselves.
+## Background (Conformity in Software Engineering: Social vs. Functional Constraints )
 
-## Background
-Alignment with dominant group norms due to social pressure [citation needed]. In PR reviews, that could manifest as:
-  - Enforcement of established conventions
-  - Policing deviation
-  - Framing norms as "how things are done"
-  - Suppressing novelty in favor of standardization
+Conformity is a multi-faceted social construct, primarily driven by normative social influence (the desire to be accepted) and informational social influence (the desire to be "correct" based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
+
+While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability—or "functional conformity"—with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
+
+### Normative Social Influence (NSI)
+
+#### Short Definition
+NSI is about Social Friction: "If I don't do this, the group will think I'm 'wrong' or 'not one of them'."
+
+#### Long Definition
+In the context of Software Engineering, Normative Social Influence (NSI) serves as the 'gatekeeper' of project culture. It represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of 'how things are done here.' This type of conformity is rooted in the fundamental human desire for belonging; a contributor may conform to group expectations at the expense of their own convictions regarding technical correctness.
+
+For example, a contributor might implement a highly performant, functionally perfect solution using a modern language feature (such as a record in Java or a generator in JavaScript). A maintainer might request a rewrite using more traditional, 'boilerplate' syntax, not because the original was buggy, but because the modern approach 'doesn't feel like our codebase.' The contributor complies, despite believing their original solution was objectively superior, to maintain social standing and ensure the Pull Request is merged. In PR reviews, NSI typically manifests as:
+- Enforcement of established conventions: Prioritizing aesthetic consistency over technical variation.
+- Policing deviation: Identifying and correcting 'out-group' behaviors or styles.
+- Framing norms as 'how things are done': Invoking the power of the in-group without offering a technical 'why.'
+- Suppressing novelty in favor of standardization (Hybrid NSI/ISI): Discouraging innovation to maintain a predictable, homogenous codebase.
+
+### Informational Social Influence (ISI)
+
+#### Short Defintion
+ISI is about Technical Uncertainty: "I'm doing this because I trust the group knows the 'best' way better than I do."
+
+#### Long Definition
+While NSI is driven by the social need for belonging, Informational Social Influence (ISI) is driven by the fundamental desire for accuracy. In the high-stakes environment of Software Engineering—where technical ambiguity is common and the cost of error is high—developers frequently look to the group as a primary source of 'truth.' ISI occurs when a contributor adopts the norms of a repository based on the belief that the group possesses superior expertise or that an established pattern represents an objective 'best practice.' By anchoring themselves to the collective wisdom of the group, the individual gains a sense of acceptance, feeling that their implementation is accurate, validated, and technically correct.
+
+### Culture as Correctness
+In human social structures, subjective preference often masquerades as objective correctness. This conflation serves as a foundation for broader social maladies, including racism and systemic prejudice. NSI and ISI are deeply intertwined through a process of normalization.
+
+For example, consider an anecdotal shift in a software project: on day one, a project leader decides to use camelCase. At this stage, it is a purely social choice (NSI)—conformance is driven by the desire for team cohesion. However, five years later, the community enforces camelCase because they believe it is 'the right way' to write code for the project. The social preference has been internalized as an objective fact (ISI). When LLMs are trained on this data, they inherit this 'hardened' bias, treating local social history as universal technical truth.
+
+#### Topics that need to be addressed in this section
+- How will you prove it's NSI and not just a senior developer teaching a junior? (ISI) involves teaching (providing facts/logic), whereas NSI involves policing (providing rules/norms without logic)
 
 ### RQs
-1. Does conformity exist as a detectable social phenomenon in software engineering discourse?
-2. Do PR review comments exhibit ideological norm-enforcement patterns, and do code-refined LLMs amplify them?
+1. To what extent can we linguistically distinguish between social gatekeeping (NSI) and technical guidance (ISI) in historical PR comments?
+2. Do instruction-tuned and code-refined LLMs exhibit a higher "Conformity Bias" than the human baseline when generating or evaluating PR feedback? (Phase 3)
 
 ## Methodology
 
@@ -334,3 +360,14 @@ thanks
 ```
 
 To regenerate the Markdown files from the current database, run from the project root: `python browse_comments.py`.
+
+### Citations
+1.
+```
+@article{cloud2025subliminal,
+  title={Subliminal Learning: language models transmit behavioral traits via hidden signals in data},
+  author={Cloud, Andrew and Le, Minh and Chua, Jonathan and Betley, Jacob and Sztyber-Betley, Aleksandra and Hilton, Joshua and Marks, Simon and Evans, Owain},
+  journal={arXiv preprint arXiv:2507.14805},
+  year={2025}
+}
+```
