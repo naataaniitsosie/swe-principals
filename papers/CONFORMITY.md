@@ -42,6 +42,12 @@ For example, consider an anecdotal shift in a software project: on day one, a pr
 
 ## Methodology
 
+### Tasks
+- Understand a human baseline of conformity
+  - RQ1
+    - generate a score for the presence of NSI and ISI in PR review comments
+      - curate prompts to evaluate an NSI and ISI score
+
 ### Goal
 Detect the following in PR review comments:
 1. References shared norms
@@ -117,6 +123,69 @@ python dataset.py --start-date 2024-01-01 --end-date 2025-12-31 --output-dir ./d
 ```
 
 Check event counts in the logs and output file sizes; multiply by (731 / 2) for a rough full 2024+2025 extrapolation.
+
+### Scoring
+
+#### Human Coding Scheme (The "Codebook")
+**Annotator Instructions**
+
+**Objective:** Determine if a Pull Request comment is enforcing a technical requirement, a social norm, or an expert best practice.
+
+**Categories:**
+- FUN: Functional or Hard Constraint: The code will break, fail a test, or cause a bug if not changed. Example: "This will cause a null pointer exception."
+- NSI: Normative Social Influence: The request is about "fitting in," style, or "how we do things." No technical reason is given. Key phrase: "Not our style," "Please follow our convention," "In this project, we prefer..."
+- ISI: Informational Social Influence: The request is about being "right" based on external evidence or expert authority. Key phrase: "Per the docs," "This is the idiomatic way," "RFC #123 suggests..."
+
+**Task:**
+For each comment, assign a score of 0–3 for both NSI and ISI based on the strength of the language used.
+| Score | Description |
+|-------|-------------|
+| 0 | No evidence of NSI or ISI |
+| 1 | Weak evidence of NSI or ISI |
+| 2 | Moderate evidence of NSI or ISI | 
+| 3 | Strong evidence of NSI or ISI |
+
+**Examples:**
+1. Pure Functional (Hard Constraint)
+```
+"If you don't close this stream, it will cause a memory leak in production."
+
+Tags: FUN
+NSI Score: 0
+NSI Reasoning: There’s no mention of any group norm or expectation—this is just a straightforward warning about a technical problem.
+ISI Score: 0
+ISI Reasoning: The commenter doesn’t refer to documentation or expert guidance—just the direct consequence of a bug.
+```
+2. Pure NSI (Social Gatekeeping)
+```
+"We don't use those types of variable names here. It makes the code look messy. Please stick to our naming style."
+
+Tags: NSI
+NSI Score: 3
+NSI Reasoning: The language focuses on fitting into the group’s established style. There is a clear push to follow “how we do things,” independent of technical necessity.
+ISI Score: 0
+ISI Reasoning: The comment does not appeal to any external authority or documentation, just to group convention.
+```
+3. Pure ISI (Technical/Expert Authority)
+```
+"According to the official documentation for this API version, this method is deprecated. You should use the new async handler to avoid future compatibility issues."
+
+Tags: ISI
+NSI Score: 0
+NSI Reasoning: There’s no suggestion that this is about fitting in with the team or following an internal style—just an external technical reason.
+ISI Score: 3
+ISI Reasoning: The reasoning is anchored in an explicit reference to official documentation, representing a strong appeal to expert or authoritative guidance.
+```
+4. High-Conformity (The "Masquerade")
+```
+"Please use camelCase here; it's our project standard and it ensures our auto-generation tools can index the API correctly per the README."
+
+Tags: NSI, ISI
+NSI Score: 2
+NSI Reasoning: There’s an obvious expectation to follow the group’s standard (project style), though the push is a little softer than a pure “fit in” argument.
+ISI Score: 2
+ISI Reasoning: The comment appeals to a written standard (the README), which carries authority, but it’s not quite as strong as citing official technical specifications or documentation.
+```
 
 ### Phase 1 — Surface-Level Conformity Detection (No LLM)
 
@@ -206,7 +275,7 @@ Interpretation:
 
 ---
 
-### Phase 2 — LLM-Based Semantic Conformity Detection
+### Phase 2 — LLM-Based Conformity Detection
 
 #### Objective
 Capture implicit and contextual conformity signals not detectable via lexical methods.
