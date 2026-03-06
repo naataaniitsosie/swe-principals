@@ -16,6 +16,8 @@
   - [Phase 1 — Surface-Level Conformity Detection (No LLM)](#phase-1--surface-level-conformity-detection-no-llm)
   - [Phase 2 — LLM-Based Conformity Detection](#phase-2--llm-based-conformity-detection)
   - [Phase 3 — Model Comparison & Conformity Amplification](#phase-3--model-comparison--conformity-amplification-if-phase-2-is-successful)
+  - [Models](#models)
+  - [Existing Code Artifacts](#existing-code-artifacts)
 - [Results](#results)
 - [Discussion](#discussion)
 - [Future Work](#future-work)
@@ -148,161 +150,6 @@ python dataset.py --start-date 2024-01-01 --end-date 2025-12-31 --output-dir ./d
 ```
 
 Check event counts in the logs and output file sizes; multiply by (731 / 2) for a rough full 2024+2025 extrapolation.
-
-### Phase 1 — Surface-Level Conformity Detection (No LLM)
-
-#### Objective
-Establish an existence proof that linguistic markers of norm enforcement are present in PR review discourse using interpretable lexical features.
-
-We operationalize conformity narrowly as:
-
-> The presence of linguistic markers indicating norm enforcement, deviation discouragement, or authority invocation in PR review comments.
-
-#### Linguistic Marker Categories
-
-##### 1️⃣ Normative Modal Lexicon
-Examples:
-```
-should
-must
-need to
-have to
-ought to
-please use
-stick to
-follow
-avoid
-prefer
-recommend
-```
-
-Metrics:
-- `modal_count`
-- `contains_modal` (binary)
-
-##### 2️⃣ Norm Reference Lexicon
-Examples:
-```
-idiomatic
-convention
-standard practice
-best practice
-consistent
-consistency
-as per
-per docs
-documentation
-style guide
-lint
-pattern
-project standard
-typical
-usually
-expected
-```
-
-Metrics:
-- `norm_ref_count`
-- `contains_norm_reference` (binary)
-
-##### 3️⃣ Authority Anchors
-Detect:
-- URLs  
-- “according to”  
-- “per the”  
-- “see docs”  
-- “README”  
-- “RFC”  
-
-Metrics:
-- `authority_count`
-- `contains_authority_anchor` (binary)
-
-#### Surface Conformity Score
-
-```
-SurfaceConformityScore =
-    1*(contains_modal) +
-    1*(contains_norm_reference) +
-    1*(contains_authority_anchor)
-```
-
-Range: 0–3
-
-Interpretation:
-- 0 = No observable norm enforcement  
-- 1 = Weak signal  
-- 2 = Moderate signal  
-- 3 = Strong surface-level norm enforcement  
-
----
-
-### Phase 2 — LLM-Based Conformity Detection
-
-#### Objective
-Capture implicit and contextual conformity signals not detectable via lexical methods.
-
-#### Operationalization
-
-For each PR review comment, the LLM evaluates:
-1. References shared norms (Yes/No)
-2. Frames deviation as undesirable (Yes/No)
-3. Appeals to authority (Yes/No)
-4. Privileges consistency over experimentation (Yes/No)
-
-The LLM must:
-- Ignore correctness
-- Ignore politeness
-- Ignore helpfulness
-- Focus only on norm invocation and enforcement
-
-#### LLM Conformity Score
-```
-LLMConformityScore = sum(binary_labels)
-```
-
-Range: 0–4
-
-#### Combined Conformity Score
-
-```
-ConformityScore =
-    α * SurfaceConformityScore +
-    β * LLMConformityScore
-```
-
-Weights (α, β) will be determined empirically.
-
----
-
-### Phase 3 — Model Comparison & Conformity Amplification (If phase 2 is successful)
-
-#### Objective
-Test whether code-refined or alignment-tuned LLMs amplify conformity signals relative to baseline models.
-
-#### Procedure
-
-1. Generate PR-style review comments using:
-   - Base LLM (e.g., GPT-2 small)
-   - Code-refined model
-   - Instruction-tuned model
-
-2. Score generated comments using:
-   - SurfaceConformityScore
-   - LLMConformityScore
-
-3. Compare distributions across model families.
-
-#### Hypothesis
-
-If code-refined models exhibit:
-- Higher norm invocation frequency
-- Stronger deviation policing
-- Greater authority appeal
-
-Then refinement may increase social conformity in code review discourse.
-
----
 
 ### Scoring
 
@@ -463,11 +310,11 @@ Metrics:
 ##### 3️⃣ Authority Anchors
 Detect:
 - URLs  
-- “according to”  
-- “per the”  
-- “see docs”  
-- “README”  
-- “RFC”  
+- "according to"  
+- "per the"  
+- "see docs"  
+- "README"  
+- "RFC"  
 
 Metrics:
 - `authority_count`
@@ -496,192 +343,25 @@ Interpretation:
 
 #### Objective
 Capture implicit and contextual conformity signals not detectable via lexical methods.
-
-#### Operationalization
-
-For each PR review comment, the LLM evaluates:
-1. References shared norms (Yes/No)
-2. Frames deviation as undesirable (Yes/No)
-3. Appeals to authority (Yes/No)
-4. Privileges consistency over experimentation (Yes/No)
-
-The LLM must:
-- Ignore correctness
-- Ignore politeness
-- Ignore helpfulness
-- Focus only on norm invocation and enforcement
-
-#### LLM Conformity Score
-```
-LLMConformityScore = sum(binary_labels)
-```
-
-Range: 0–4
-
-#### Combined Conformity Score
-
-```
-ConformityScore =
-    α * SurfaceConformityScore +
-    β * LLMConformityScore
-```
-
-Weights (α, β) will be determined empirically.
-
----
-
-### Phase 3 — Model Comparison & Conformity Amplification (If phase 2 is successful)
-
-#### Objective
-Test whether code-refined or alignment-tuned LLMs amplify conformity signals relative to baseline models.
 
 #### Procedure
-
-1. Generate PR-style review comments using:
-   - Base LLM (e.g., GPT-2 small)
-   - Code-refined model
-   - Instruction-tuned model
-
-2. Score generated comments using:
-   - SurfaceConformityScore
-   - LLMConformityScore
-
-3. Compare distributions across model families.
-
-#### Hypothesis
-
-If code-refined models exhibit:
-- Higher norm invocation frequency
-- Stronger deviation policing
-- Greater authority appeal
-
-Then refinement may increase social conformity in code review discourse.
-
----
-
-### Phase 1 — Surface-Level Conformity Detection (No LLM)
-
-#### Objective
-Establish an existence proof that linguistic markers of norm enforcement are present in PR review discourse using interpretable lexical features.
-
-We operationalize conformity narrowly as:
-
-> The presence of linguistic markers indicating norm enforcement, deviation discouragement, or authority invocation in PR review comments.
-
-#### Linguistic Marker Categories
-
-##### 1️⃣ Normative Modal Lexicon
-Examples:
-```
-should
-must
-need to
-have to
-ought to
-please use
-stick to
-follow
-avoid
-prefer
-recommend
-```
-
-Metrics:
-- `modal_count`
-- `contains_modal` (binary)
-
-##### 2️⃣ Norm Reference Lexicon
-Examples:
-```
-idiomatic
-convention
-standard practice
-best practice
-consistent
-consistency
-as per
-per docs
-documentation
-style guide
-lint
-pattern
-project standard
-typical
-usually
-expected
-```
-
-Metrics:
-- `norm_ref_count`
-- `contains_norm_reference` (binary)
-
-##### 3️⃣ Authority Anchors
-Detect:
-- URLs  
-- “according to”  
-- “per the”  
-- “see docs”  
-- “README”  
-- “RFC”  
-
-Metrics:
-- `authority_count`
-- `contains_authority_anchor` (binary)
-
-#### Surface Conformity Score
-
-```
-SurfaceConformityScore =
-    1*(contains_modal) +
-    1*(contains_norm_reference) +
-    1*(contains_authority_anchor)
-```
-
-Range: 0–3
-
-Interpretation:
-- 0 = No observable norm enforcement  
-- 1 = Weak signal  
-- 2 = Moderate signal  
-- 3 = Strong surface-level norm enforcement  
-
----
-
-### Phase 2 — LLM-Based Conformity Detection
-
-#### Objective
-Capture implicit and contextual conformity signals not detectable via lexical methods.
-
-#### Operationalization
-
-For each PR review comment, the LLM evaluates:
-1. References shared norms (Yes/No)
-2. Frames deviation as undesirable (Yes/No)
-3. Appeals to authority (Yes/No)
-4. Privileges consistency over experimentation (Yes/No)
-
-The LLM must:
-- Ignore correctness
-- Ignore politeness
-- Ignore helpfulness
-- Focus only on norm invocation and enforcement
+In this phase, the LLM will annotate the dataset using the **LLM Coding Scheme (System Prompt)** defined in the [Scoring](#scoring) section. The model will evaluate each PR review comment and output a JSON object containing independent reasoning and scores (0–3) for both NSI and ISI.
 
 #### LLM Conformity Score
-```
-LLMConformityScore = sum(binary_labels)
-```
-
-Range: 0–4
+The LLM provides two primary metrics per comment:
+- `nsi_score`: 0–3
+- `isi_score`: 0–3
 
 #### Combined Conformity Score
+To integrate lexical and contextual signals, a combined score is calculated:
 
 ```
 ConformityScore =
     α * SurfaceConformityScore +
-    β * LLMConformityScore
+    β * (nsi_score + isi_score)
 ```
 
-Weights (α, β) will be determined empirically.
+Weights (α, β) will be determined empirically during validation.
 
 ---
 
