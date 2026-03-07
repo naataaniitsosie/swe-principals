@@ -79,6 +79,18 @@ Example query:
 sqlite3 data/raw/events.db "SELECT comment_id, model_name, nsi_score, isi_score FROM scores LIMIT 5;"
 ```
 
+## Deleting the scores table
+
+**WARNING: Do not do this unless you REALLY want to reprocess.** Dropping the `scores` table removes all judge output. The next run of `python judge.py` will score every comment again (no `--skip-existing` state). Use only when you need a full reset (e.g. new rubric, new DB, or intentional reprocess).
+
+Default DB path (see `project_config.py`): `data/raw/events.db`.
+
+```bash
+sqlite3 data/raw/events.db "DROP TABLE IF EXISTS scores;"
+```
+
+To recreate the table (empty), run the judge once; it will create the table on first write. Or run `python judge.py --limit 1` and then delete that row if you only wanted the schema.
+
 ## Rubric
 
 The system prompt and scoring rules (FUN / NSI / ISI, 0–3 scale) are defined in the repo at [papers/CONFORMITY.md](../papers/CONFORMITY.md) under “LLM Coding Scheme (System Prompt)”. The judge sends that text as the system prompt and each comment as the user message; the model is asked to respond with a single JSON object (`nsi_reasoning`, `nsi_score`, `isi_reasoning`, `isi_score`).
