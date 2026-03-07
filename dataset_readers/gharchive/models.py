@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class EventType(Enum):
-    """GitHub event types for PR sentiment analysis."""
+    """GitHub event types for PR comment analysis."""
     PULL_REQUEST = "PullRequestEvent"
     PR_REVIEW = "PullRequestReviewEvent"
     PR_REVIEW_COMMENT = "PullRequestReviewCommentEvent"
@@ -108,7 +108,7 @@ class GitHubEvent:
         )
 
     def extract_text_content(self) -> Optional[str]:
-        """Extract text suitable for sentiment analysis."""
+        """Extract text suitable for analysis (e.g. judge, preprocessing)."""
         if self.event_type == EventType.PULL_REQUEST:
             pr_data = self.payload.get("pull_request", {})
             title = pr_data.get("title", "")

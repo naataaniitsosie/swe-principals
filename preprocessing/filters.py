@@ -24,7 +24,7 @@ BOT_CI_PATTERNS = (
     "codecov",
 )
 
-# Trivial comments: no semantic value for conformity/sentiment (CONFORMITY.md examples + common)
+# Trivial comments: no semantic value for conformity (CONFORMITY.md examples + common)
 TRIVIAL_PHRASES = frozenset({
     "lgtm", "lgtm!", "lgtm.",
     "thanks", "thanks!", "thanks.",

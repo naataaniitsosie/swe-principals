@@ -30,19 +30,17 @@ The DB is a single SQLite file (see **`dataset_readers/gharchive/storage.py`** a
 
 ## Runnable scripts (pipeline)
 
-Run in order: **1. Extract** → **2. Preprocess** → **3. Analyze** (e.g. sentiment).
+Run in order: **1. Extract** → **2. Preprocess**. Optional: **browse_comments**, **judge**.
 
 | Step | Script | Input | Output |
 |------|--------|--------|--------|
 | 1. Extract | `python dataset.py` | GHArchive (network) | `data/raw/events.db` |
 | 2. Preprocess | `python preprocess.py` | config `DATA_DIR` | same DB (`cleaned` table) |
-| 3. Analyze | `python sentiment.py` | `data/raw` or `data/cleaned` | `./data/sentiment` |
 
 **Chaining:**
 ```bash
 python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
 python preprocess.py
-python sentiment.py ./data/raw --output-dir ./data/sentiment
 ```
 
 ---

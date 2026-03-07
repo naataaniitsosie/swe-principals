@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Extract pull request data for conformity/sentiment analysis.",
+        description="Extract pull request data for conformity analysis.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Available readers: {', '.join(list_readers())}",
     )
