@@ -162,3 +162,18 @@ def _get_author_association(event: Dict[str, Any]) -> str:
         or payload.get("issue", {}).get("author_association")
         or ""
     )
+
+
+def metadata_from_raw_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract repo, created_at, type, author_association from raw event_data.
+    Used when reading normalized cleaned (join with events) so we don't duplicate raw data.
+    """
+    repo = event.get("repo") or {}
+    repo_name = repo.get("name", "") if isinstance(repo, dict) else ""
+    return {
+        "repo": repo_name,
+        "created_at": event.get("created_at") or "",
+        "type": event.get("type") or "",
+        "author_association": _get_author_association(event),
+    }

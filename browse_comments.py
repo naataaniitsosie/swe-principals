@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Convert preprocessed events from the SQLite DB (cleaned table) to Markdown files per repo,
-organized by date. Uses project_config for DB and output directory. No CLI options.
+Convert preprocessed events from the SQLite DB to Markdown files per repo, organized by date.
+Uses normalized cleaned table: JOIN with events for metadata. Output is always fresh (overwrites and removes stale files).
 """
 import json
 import sqlite3
@@ -10,15 +10,11 @@ from collections import defaultdict
 from typing import List
 
 from project_config import DATA_DIR, db_path
-
-
-def _table_for_db() -> str:
-    """Table to read from; always cleaned."""
-    return "cleaned"
+from preprocessing.workflow import metadata_from_raw_event
 
 
 def _repo_from_record(rec: dict) -> str:
-    """Repo name from record (cleaned table: repo is string)."""
+    """Repo name from record."""
     repo = rec.get("repo")
     if isinstance(repo, str):
         return repo
@@ -26,18 +22,30 @@ def _repo_from_record(rec: dict) -> str:
 
 
 def load_records_by_repo(db_path: Path) -> dict[str, List[dict]]:
-    """Load all records from DB cleaned table, grouped by repo."""
+    """Load records from cleaned JOIN events (normalized schema)."""
     conn = sqlite3.connect(str(db_path))
-    table = _table_for_db()
-    cursor = conn.execute(f"SELECT id, event_data FROM {table}")
-    rows = [(row[0], row[1]) for row in cursor]
+    cursor = conn.execute(
+        """SELECT c.id, c.cleaned_text, c.tokens, e.event_data
+           FROM cleaned c
+           INNER JOIN events e ON e.id = c.id"""
+    )
+    rows = list(cursor)
     conn.close()
-    # Parse and sort by created_at then id; group by repo
     records = []
-    for _id, event_data in rows:
+    for _id, cleaned_text, tokens_str, event_data_str in rows:
         try:
-            rec = json.loads(event_data)
-            rec.setdefault("id", _id)
+            event_data = json.loads(event_data_str)
+            meta = metadata_from_raw_event(event_data)
+            tokens = json.loads(tokens_str) if tokens_str else []
+            rec = {
+                "id": _id,
+                "cleaned_text": cleaned_text or "",
+                "repo": meta["repo"],
+                "created_at": meta["created_at"],
+                "type": meta["type"],
+                "author_association": meta["author_association"],
+                "tokens": tokens,
+            }
             records.append(rec)
         except (json.JSONDecodeError, TypeError):
             continue
@@ -94,12 +102,17 @@ def records_to_md(records: List[dict], repo_label: str) -> str:
 
 
 def main() -> None:
-    data_dir = Path(DATA_DIR)
     path_to_db = db_path()
+    data_dir = Path(DATA_DIR)
     if not data_dir.is_dir():
         raise SystemExit(f"Data directory does not exist: {data_dir} (set DATA_DIR in project_config.py)")
     if not path_to_db.exists():
         raise SystemExit(f"Database not found: {path_to_db}")
+
+    # Delete existing repo Markdown files first so output is exactly this run's result.
+    for path in data_dir.glob("*.md"):
+        path.unlink()
+        print(f"Removed {path.name}")
 
     by_repo = load_records_by_repo(path_to_db)
     for repo, records in sorted(by_repo.items()):

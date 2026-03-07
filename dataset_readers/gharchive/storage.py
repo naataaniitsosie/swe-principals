@@ -10,9 +10,9 @@ events
     event_data is the full GitHub event; query with json_extract(event_data, '$....').
 
 cleaned
-    Preprocessed events (preprocess.py). Same schema: id (PK), event_data (JSON blob).
-    event_data JSON fields: id, cleaned_text, repo, created_at, type, author_association, tokens.
-    Created only when preprocessing writes to the same DB.
+    Normalized preprocessed data (preprocess.py). Only derived data; raw fields come from events.
+    Columns: id (PK, FK to events.id), cleaned_text, tokens (JSON text).
+    Join with events to get repo, created_at, type, author_association (no duplication).
 """
 import json
 import sqlite3
@@ -71,11 +71,19 @@ def get_raw_db_stats(db_path: Path) -> Dict[str, Any]:
     }
 
 
+# Normalized cleaned table: only id + derived fields. Raw fields (repo, created_at, type, author_association) live in events.
+CLEANED_TABLE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS cleaned (
+    id TEXT PRIMARY KEY,
+    cleaned_text TEXT NOT NULL,
+    tokens TEXT NOT NULL
+)
+"""
+
+
 def _create_cleaned_table(conn: sqlite3.Connection) -> None:
-    """Same schema as events: id + event_data. Used when preprocess writes to the same DB."""
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS cleaned (\n  " + ",\n  ".join(EVENTS_TABLE_COLUMNS) + "\n)"
-    )
+    """Create normalized cleaned table (id, cleaned_text, tokens). Join with events for repo, created_at, type, author_association."""
+    conn.executescript(CLEANED_TABLE_SCHEMA.strip())
 
 
 class StreamingWriter:

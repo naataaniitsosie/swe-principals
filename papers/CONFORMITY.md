@@ -400,6 +400,14 @@ Then refinement may increase social conformity in code review discourse.
 | GPT2 Small | `openai-community/gpt2` | baseline model |
 | <Model Name> | <HF ID> | <Notes> |
 
+###### Models for Judging
+| Model | HF ID (Quant Basis) | Rationale |
+| ----- | ----- | ----- |
+| Llama 3.1 8B (Q8_0) | meta-llama/Llama-3.1-8B-Instruct | Given my hardward constraints: It is useful for high-volume, first-pass scoring where social cues are obvious. |
+| Gemma 2 27B (Q4_K_M) | google/gemma-2-27b-it | The Sweet Spot: This is your primary "Judge." At 27B parameters, it has the world-knowledge of a much larger model but fits comfortably in my hardward constraints. It is highly sensitive to sociolinguistic nuance. |
+| Phi-4 (14B) | microsoft/phi-4 | The Logic Specialist: A 14B model that punches way above its weight. It is trained with a focus on reasoning and logic, making it excellent at distinguishing "Hard Constraints" (FUN) from "Soft" ones. |
+| Llama 3.1 70B (Q2_K) | meta-llama/Llama-3.1-70B-Instruct | The Oracle (Local): Even at extreme compression (2-bit), a 70B model often retains better "common sense" and social intuition than a full 8B model. Use this for resolving difficult or ambiguous "Masquerade" cases. |
+
 #### Existing Code Artifacts
 In this repository, use the `dataset_readers` folder to read the dataset and extract PR comments.
 

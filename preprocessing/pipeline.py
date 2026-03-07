@@ -23,6 +23,7 @@ def clean_db(workflow: Workflow, db_path: Path) -> tuple[int, int, int]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(db_path))
+    conn.execute("DROP TABLE IF EXISTS cleaned")
     _create_cleaned_table(conn)
     cursor = conn.execute("SELECT event_data FROM events")
 
@@ -43,10 +44,10 @@ def clean_db(workflow: Workflow, db_path: Path) -> tuple[int, int, int]:
 
         cleaned = workflow.run(event)
         if cleaned is not None:
-            cleaned_json = json.dumps(cleaned, ensure_ascii=False)
+            tokens_json = json.dumps(cleaned.get("tokens") or [], ensure_ascii=False)
             conn.execute(
-                "INSERT OR REPLACE INTO cleaned (id, event_data) VALUES (?, ?)",
-                (eid_key or str(read_count), cleaned_json),
+                "INSERT OR REPLACE INTO cleaned (id, cleaned_text, tokens) VALUES (?, ?, ?)",
+                (eid_key or str(read_count), cleaned.get("cleaned_text") or "", tokens_json),
             )
             written_count += 1
 

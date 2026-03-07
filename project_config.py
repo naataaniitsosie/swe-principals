@@ -10,6 +10,9 @@ DATA_DIR: Path = Path("data/raw")
 # Single SQLite database filename.
 DB_FILENAME: str = "events.db"
 
+# Default repo for judge (and other analysis) when filtering by repo. Use owner/repo (e.g. expressjs/express).
+JUDGE_DEFAULT_REPO: str = "expressjs/express"
+
 
 def db_path(base_dir: Path | None = None) -> Path:
     """Path to the events database. Default: DATA_DIR / DB_FILENAME."""
