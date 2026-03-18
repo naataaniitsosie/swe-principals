@@ -182,16 +182,17 @@ Check event counts in the logs and output file sizes; multiply by (731 / 2) for 
 **Categories:**
 - FUN: Functional or Hard Constraint: The code will break, fail a test, or cause a bug if not changed. Example: "This will cause a null pointer exception."
 - NSI: Normative Social Influence: The request is about "fitting in," style, or "how we do things." No technical reason is given. Key phrase: "Not our style," "Please follow our convention," "In this project, we prefer..."
+- INSI: Implicit Normative Social Influence: The request is about "fitting in," style, or "how we do things." No technical reason is given. The reasoning is not verbally articulated by the reviewer. Key phrase: "Are we really doing it this way?" or "Hmm, this approach feels a bit off to me."
 - ISI: Informational Social Influence: The request is about being "right" based on external evidence or expert authority. Key phrase: "Per the docs," "This is the idiomatic way," "RFC #123 suggests..."
 
 **Task:**
 For each comment, assign a score of 0–3 for both NSI and ISI based on the strength of the language used.
 | Score | Description |
 |-------|-------------|
-| 0 | No evidence of NSI or ISI |
-| 1 | Weak evidence of NSI or ISI |
-| 2 | Moderate evidence of NSI or ISI | 
-| 3 | Strong evidence of NSI or ISI |
+| 0 | No evidence of NSI, INSI, or ISI |
+| 1 | Weak evidence of NSI, INSI, or ISI |
+| 2 | Moderate evidence of NSI, INSI, or ISI | 
+| 3 | Strong evidence of NSI, INSI, or ISI |
 
 **Examples:**
 1. Pure Functional (Hard Constraint)
@@ -201,6 +202,8 @@ For each comment, assign a score of 0–3 for both NSI and ISI based on the stre
 Tags: FUN
 NSI Score: 0
 NSI Reasoning: There’s no mention of any group norm or expectation—this is just a straightforward warning about a technical problem.
+INSI Score: 0
+INSI Reasoning: There is no ambiguous gatekeeping or unstated disapproval here.
 ISI Score: 0
 ISI Reasoning: The commenter doesn’t refer to documentation or expert guidance—just the direct consequence of a bug.
 ```
@@ -211,6 +214,8 @@ ISI Reasoning: The commenter doesn’t refer to documentation or expert guidance
 Tags: NSI
 NSI Score: 3
 NSI Reasoning: The language focuses on fitting into the group’s established style. There is a clear push to follow “how we do things,” independent of technical necessity.
+INSI Score: 0
+INSI Reasoning: The stylistic rule is explicitly stated by the reviewer, so there is no hidden rule the contributor is forced to guess.
 ISI Score: 0
 ISI Reasoning: The comment does not appeal to any external authority or documentation, just to group convention.
 ```
@@ -221,6 +226,8 @@ ISI Reasoning: The comment does not appeal to any external authority or document
 Tags: ISI
 NSI Score: 0
 NSI Reasoning: There’s no suggestion that this is about fitting in with the team or following an internal style—just an external technical reason.
+INSI Score: 0
+INSI Reasoning: Clear, explicit reasoning is provided for the requested change, eliminating any ambiguity.
 ISI Score: 3
 ISI Reasoning: The reasoning is anchored in an explicit reference to official documentation, representing a strong appeal to expert or authoritative guidance.
 ```
@@ -231,8 +238,23 @@ ISI Reasoning: The reasoning is anchored in an explicit reference to official do
 Tags: NSI, ISI
 NSI Score: 2
 NSI Reasoning: There’s an obvious expectation to follow the group’s standard (project style), though the push is a little softer than a pure “fit in” argument.
+INSI Score: 0
+INSI Reasoning:The expectations and rules are explicitly stated, leaving no unarticulated "code smells" for the contributor to guess.
 ISI Score: 2
 ISI Reasoning: The comment appeals to a written standard (the README), which carries authority, but it’s not quite as strong as citing official technical specifications or documentation.
+```
+
+5. Pure INSI (Implicit Normative Social Influence)
+```
+"Hmm, I'm really not sure we want to be doing this here..."
+
+Tags: INSI
+NSI Score: 0
+NSI Reasoning: No specific stylistic rule or convention is explicitly stated for the contributor to follow.
+INSI Score: 3
+INSI Reasoning: The reviewer expresses disapproval and creates social friction without providing technical justification or stating the violated norm. This forces the contributor to guess the unwritten rule.
+ISI Score: 0
+ISI Reasoning: No documentation, facts, or logical arguments are provided.
 ```
 
 #### LLM Coding Scheme (System Prompt)
