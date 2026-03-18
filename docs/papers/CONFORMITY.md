@@ -27,7 +27,7 @@
   - [Appendix B: Visualizing Sample Data Using Markdown](#appendix-b-visualizing-sample-data-using-markdown)
 - [Citations](#citations)
 
-## Background (Conformity in Software Engineering: Social vs. Functional Constraints )
+## Background (Conformity in Software Engineering: Social vs. Functional Constraints)
 
 Conformity is a multi-faceted social construct, primarily driven by normative social influence (the desire to be accepted) and informational social influence (the desire to be "correct" based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
 
@@ -39,13 +39,30 @@ While Formal Methods (FM) provide objective measurements of functional correctne
 NSI is about Social Friction: "If I don't do this, the group will think I'm 'wrong' or 'not one of them'."
 
 #### Long Definition
-In the context of Software Engineering, Normative Social Influence (NSI) serves as the 'gatekeeper' of project culture. It represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of 'how things are done here.' This type of conformity is rooted in the fundamental human desire for belonging; a contributor may conform to group expectations at the expense of their own convictions regarding technical correctness.
+In the context of Software Engineering, Normative Social Influence (NSI) serves as the 'gatekeeper' of project culture. It represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of 'how things are done here.' This type of conformity is rooted in the fundamental human desire for belonging; a contributor may conform to group expectations at the expense of their own convictions regarding technical correctness. A key tenet of NSI in SE is the lack of technical grounding for a requested change, even when a social or stylistic justification is explicitly provided.
 
 For example, a contributor might implement a highly performant, functionally perfect solution using a modern language feature (such as a record in Java or a generator in JavaScript). A maintainer might request a rewrite using more traditional, 'boilerplate' syntax, not because the original was buggy, but because the modern approach 'doesn't feel like our codebase.' The contributor complies, despite believing their original solution was objectively superior, to maintain social standing and ensure the Pull Request is merged. In PR reviews, NSI typically manifests as:
 - Enforcement of established conventions: Prioritizing aesthetic consistency over technical variation.
 - Policing deviation: Identifying and correcting 'out-group' behaviors or styles.
 - Framing norms as 'how things are done': Invoking the power of the in-group without offering a technical 'why.'
 - Suppressing novelty in favor of standardization (Hybrid NSI/ISI): Discouraging innovation to maintain a predictable, homogenous codebase.
+
+### Implicit Normative Social Influence (INSI)
+INSI is about Gatekeeping via Ambiguity: "I am rejecting this code because it violates an unwritten rule, but I will not explain what that rule is."
+
+#### Long Definition
+In contrast to explicit NSI, where a social norm is clearly stated, Implicit Normative Social Influence (INSI) enforces conformity through unsubstantiated dissent. In the context of Software Engineering, this often manifests as PR feedback where a reviewer expresses dissatisfaction without providing technical reasoning (FUN), expert authority (ISI), or even a clear stylistic rule (NSI). A key tenant of INSI in SE is the lack of technical justification for the requested change and the reasoning is not verbally articulated by the reviewer.
+
+Driven by territoriality, cognitive depletion, or a reliance on unarticulated "code smells," the reviewer leverages their structural power to create social friction. Rather than teaching a convention, the reviewer forces the contributor to guess the unwritten norm and alter their functionally correct code simply to appease the reviewer and ensure the Pull Request is merged.
+
+#### Core Distinction between Explicit NSI and INSI
+The core distinction between explicit NSI and INSI lies in the visibility of the enforced rule during the interaction.
+
+##### _Explicit_ NSI
+The reviewer explicitly states the expected behavior or convention, though they provide no technical justification. For example,"Please rewrite this using a standard if/else block; that is our project's style." This is direct social pressure. The contributor complies because the boundary of the "in-group" is clearly drawn.
+
+##### _Implicit_ NSI
+The reviewer expresses disapproval, but the rule lives exclusively in their head. The comment contains friction but completely omits the actual convention the contributor violated. For example, "Are we really doing it this way?" or "Hmm, this approach feels a bit off to me." This is gatekeeping via ambiguity. The contributor feels their code is unwelcome and is forced to blindly guess the unwritten convention to resolve the friction.
 
 ### Informational Social Influence (ISI)
 
@@ -54,6 +71,8 @@ ISI is about Technical Uncertainty: "I'm doing this because I trust the group kn
 
 #### Long Definition
 While NSI is driven by the social need for belonging, Informational Social Influence (ISI) is driven by the fundamental desire for accuracy. In the high-stakes environment of Software Engineering—where technical ambiguity is common and the cost of error is high—developers frequently look to the group as a primary source of 'truth.' ISI occurs when a contributor adopts the norms of a repository based on the belief that the group possesses superior expertise or that an established pattern represents an objective 'best practice.' By anchoring themselves to the collective wisdom of the group, the individual gains a sense of acceptance, feeling that their implementation is accurate, validated, and technically correct.
+
+For instance, a reviewer might comment, "Please update this routing logic to use the new v3 middleware, as outlined in the core migration docs." The contributor complies not simply to fit in, but because they trust the documentation represents the objectively correct state of the system. This is a classic example of ISI.
 
 ### Culture as Correctness
 In human social structures, subjective preference often masquerades as objective correctness. This conflation serves as a foundation for broader social maladies, including racism and systemic prejudice. NSI and ISI are deeply intertwined through a process of normalization.
