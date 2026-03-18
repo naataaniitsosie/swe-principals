@@ -3,6 +3,8 @@
 ## Table of Contents
 - [Background (Conformity in Software Engineering: Social vs. Functional Constraints)](#background-conformity-in-software-engineering-social-vs-functional-constraints)
   - [Normative Social Influence (NSI)](#normative-social-influence-nsi)
+  - [Implicit Normative Social Influence (INSI)](#implicit-normative-social-influence-insi)
+  - [Core Distinction between Explicit NSI and INSI](#core-distinction-between-explicit-nsi-and-insi)
   - [Informational Social Influence (ISI)](#informational-social-influence-isi)
   - [Culture as Correctness](#culture-as-correctness)
   - [Research Questions (RQs)](#research-questions-rqs)
