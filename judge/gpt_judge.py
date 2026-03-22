@@ -8,6 +8,7 @@ import os
 from typing import Optional
 
 import project_config  # noqa: F401 — loads `.env` from repo root before OPENAI_API_TOKEN is read
+from openai import OpenAI
 
 from judge.judge_result import JudgeResult, judge_result_from_raw_model_output
 from judge.rubric import build_user_message, get_system_prompt
@@ -50,13 +51,6 @@ class GPTJudge:
         Send the comment to OpenAI with the rubric as system prompt.
         Parse JSON per CONFORMITY_SYSTEM_PROMPT (FUN, NSI, INSI, ISI).
         """
-        try:
-            from openai import OpenAI
-        except ImportError as e:
-            raise ImportError(
-                "openai package is required. Install with: pip install openai"
-            ) from e
-
         client = OpenAI(api_key=self._api_key, timeout=self._timeout)
         user_message = build_user_message(cleaned_text)
 
