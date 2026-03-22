@@ -1,12 +1,13 @@
 """
-Orchestration: read cleaned rows, run Ollama judge per comment, write scores with dedupe.
+Orchestration: read cleaned rows, run LLM judge per comment, write scores with dedupe.
 """
 import logging
 from pathlib import Path
 
 from project_config import db_path
 
-from judge.config import resolve_model, DEFAULT_MODEL
+from judge.config import Backend, resolve_model_for_backend
+from judge.gpt_judge import GPTJudge
 from judge.storage import CleanedReader, ScoresWriter, get_scored_comment_ids
 from judge.ollama_judge import OllamaJudge
 
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def run(
-    model: str,
+    model: str | None = None,
+    backend: Backend = "ollama",
     db_path_override: Path | None = None,
     limit: int | None = None,
     skip_existing: bool = False,
@@ -25,7 +27,7 @@ def run(
     If repo is set, only process comments from that repo (owner/name, e.g. expressjs/express).
     """
     path = db_path_override or db_path()
-    model_tag = resolve_model(model)
+    model_tag = resolve_model_for_backend(backend, model)
 
     if skip_existing:
         scored_ids = get_scored_comment_ids(path, model_tag)
@@ -44,12 +46,21 @@ def run(
     records = reader.list_records()
     total_to_score = min(len(records), limit) if limit is not None else len(records)
     if filters:
-        logger.info("Will score %d comments (filters=%s, model=%s)", total_to_score, filters, model_tag)
+        logger.info(
+            "Will score %d comments (filters=%s, backend=%s, model=%s)",
+            total_to_score,
+            filters,
+            backend,
+            model_tag,
+        )
     else:
-        logger.info("Will score %d comments (model=%s)", total_to_score, model_tag)
+        logger.info("Will score %d comments (backend=%s, model=%s)", total_to_score, backend, model_tag)
 
     writer = ScoresWriter(path)
-    judge = OllamaJudge(model_tag)
+    if backend == "openai":
+        judge = GPTJudge(model=model_tag)
+    else:
+        judge = OllamaJudge(model_tag)
 
     num_scored = 0
     num_skipped = len(scored_ids) if skip_existing else 0
@@ -70,9 +81,11 @@ def run(
             num_scored += 1
             left = total_to_score - num_scored
             logger.info(
-                "Scored comment %s (nsi=%d, isi=%d) — %d/%d done, %d left",
+                "Scored comment %s (fun=%d nsi=%d insi=%d isi=%d) — %d/%d done, %d left",
                 comment_id,
+                result.fun_score,
                 result.nsi_score,
+                result.insi_score,
                 result.isi_score,
                 num_scored,
                 total_to_score,

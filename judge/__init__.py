@@ -1,4 +1,4 @@
 """
-LLM judge for conformity scoring (NSI/ISI) on PR comments.
-Reads from cleaned table, runs Ollama inference with CONFORMITY rubric, writes to scores table.
+LLM judge for conformity scoring on PR comments (FUN, NSI, INSI, ISI per CONFORMITY_SYSTEM_PROMPT).
+Reads from cleaned table, runs Ollama or OpenAI, writes full schema to scores table.
 """
