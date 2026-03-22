@@ -1,6 +1,6 @@
 # Judge — LLM scoring for NSI/ISI conformity
 
-The judge scores cleaned PR comments using an Ollama model and the rubric in [CONFORMITY.md](../papers/CONFORMITY.md). It reads from the **cleaned** table and writes **scores** (NSI/ISI 0–3 plus reasoning) to the same SQLite DB.
+The judge scores cleaned PR comments using an Ollama model and the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../docs/papers/CONFORMITY_SYSTEM_PROMPT.md) (see also [CONFORMITY.md](../docs/papers/CONFORMITY.md)). It reads from the **cleaned** table and writes **scores** (NSI/ISI 0–3 plus reasoning) to the same SQLite DB.
 
 ## Prerequisites
 
@@ -93,4 +93,4 @@ To recreate the table (empty), run the judge once; it will create the table on f
 
 ## Rubric
 
-The system prompt and scoring rules (FUN / NSI / ISI, 0–3 scale) are defined in the repo at [papers/CONFORMITY.md](../papers/CONFORMITY.md) under “LLM Coding Scheme (System Prompt)”. The judge sends that text as the system prompt and each comment as the user message; the model is asked to respond with a single JSON object (`nsi_reasoning`, `nsi_score`, `isi_reasoning`, `isi_score`).
+The system prompt and scoring rules are defined in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../docs/papers/CONFORMITY_SYSTEM_PROMPT.md). `judge/rubric.py` loads that file verbatim as the system prompt. The model is asked to respond with a JSON object (see the prompt for the full key schema); the judge currently persists NSI/ISI fields (`nsi_reasoning`, `nsi_score`, `isi_reasoning`, `isi_score`) to SQLite.

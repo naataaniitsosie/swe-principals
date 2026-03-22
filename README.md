@@ -116,7 +116,7 @@ See [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.
 
 ### Judge (LLM scoring) (`judge.py`)
 
-Scores cleaned PR comments for NSI/ISI conformity using an Ollama model and the rubric in [CONFORMITY.md](papers/CONFORMITY.md). Reads from the **cleaned** table, writes to the **scores** table in the same DB. Deduplication is by `(comment_id, model_name)`.
+Scores cleaned PR comments for NSI/ISI conformity using an Ollama model and the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](docs/papers/CONFORMITY_SYSTEM_PROMPT.md) (paper context: [CONFORMITY.md](docs/papers/CONFORMITY.md)). Reads from the **cleaned** table, writes to the **scores** table in the same DB. Deduplication is by `(comment_id, model_name)`.
 
 **Supported models (two for now):** Llama and Gemma. Use short names or Ollama tags (e.g. `llama3.1:8b`, `gemma2:27b`).
 
