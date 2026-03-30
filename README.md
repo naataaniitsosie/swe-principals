@@ -183,3 +183,113 @@ python browse_scores.py --model gpt-5.4-mini --all > sample_scores_gptmini.md
 ```
 
 ---
+
+## SQLite queries
+**List all scores that have a total score of 0. Include comment text sort by date.**
+
+```bash
+sqlite3 -header data/raw/events.db "
+SELECT comment_id, created_at, model_name, fun_score, nsi_score, insi_score, isi_score, cleaned_text
+FROM scores
+INNER JOIN cleaned ON cleaned.id = scores.comment_id
+WHERE fun_score + nsi_score + insi_score + isi_score = 0
+ORDER BY created_at;"
+```
+or if a count is needed:
+```bash
+sqlite3 -header data/raw/events.db "SELECT COUNT(*) AS n
+FROM scores
+INNER JOIN cleaned ON cleaned.id = scores.comment_id
+WHERE fun_score + nsi_score + insi_score + isi_score = 0;"
+```
+
+**List all the score will a non-zero total score. Include comment text.**
+```bash
+sqlite3 -header data/raw/events.db "
+SELECT comment_id, created_at,model_name, fun_score, nsi_score, insi_score, isi_score, cleaned_text
+FROM scores
+INNER JOIN cleaned ON cleaned.id = scores.comment_id
+WHERE fun_score + nsi_score + insi_score + isi_score > 0
+ORDER BY created_at;"
+```
+or if a count is needed:
+```bash
+sqlite3 -header data/raw/events.db "SELECT COUNT(*) AS n
+FROM scores
+INNER JOIN cleaned ON cleaned.id = scores.comment_id
+WHERE fun_score + nsi_score + insi_score + isi_score > 0;"
+```
+
+## FAQ: questions and SQLite answers
+
+The judge only scores rows in **cleaned**; **scores** stores one row per **(comment_id, model_name)**. Replace `data/raw/events.db` if you use another path (`project_config`).
+
+**How many comments have and have not been scored?**
+
+Here “scored” means the comment has **at least one** row in **scores** (any model). “Not scored” means a **cleaned** row with **no** matching `comment_id` in **scores**.
+
+```bash
+sqlite3 -header data/raw/events.db "SELECT
+  (SELECT COUNT(*) FROM cleaned) AS cleaned_total,
+  (SELECT COUNT(DISTINCT comment_id) FROM scores) AS cleaned_with_any_score,
+  (SELECT COUNT(*) FROM cleaned c WHERE NOT EXISTS (
+    SELECT 1 FROM scores s WHERE s.comment_id = c.id
+  )) AS cleaned_never_scored;"
+```
+
+**How many scores has each model performed?**
+
+Each row in **scores** is one judged comment for that model.
+
+```bash
+sqlite3 data/raw/events.db "SELECT model_name, COUNT(*) AS n_scores FROM scores GROUP BY model_name ORDER BY model_name;"
+```
+
+**How often does each score (0–3) appear for FUN, NSI, INSI, and ISI?**
+
+One query: counts per rubric dimension and per score value (every row in **scores** contributes once to each dimension).
+
+```bash
+sqlite3 -header -column data/raw/events.db "
+SELECT 'FUN' AS rubric, fun_score AS score, COUNT(*) AS n
+FROM scores GROUP BY fun_score
+UNION ALL
+SELECT 'NSI', nsi_score, COUNT(*) FROM scores GROUP BY nsi_score
+UNION ALL
+SELECT 'INSI', insi_score, COUNT(*) FROM scores GROUP BY insi_score
+UNION ALL
+SELECT 'ISI', isi_score, COUNT(*) FROM scores GROUP BY isi_score
+ORDER BY rubric, score;"
+```
+
+**What single score (0–3) is most common, pooling all four dimensions?**
+
+```bash
+sqlite3 -header data/raw/events.db "
+SELECT score, COUNT(*) AS n FROM (
+  SELECT fun_score AS score FROM scores
+  UNION ALL SELECT nsi_score FROM scores
+  UNION ALL SELECT insi_score FROM scores
+  UNION ALL SELECT isi_score FROM scores
+)
+GROUP BY score
+ORDER BY n DESC, score DESC
+LIMIT 1;"
+```
+
+**How many non-zero scores are there for each dimension?**
+
+```bash
+sqlite3 -header data/raw/events.db "
+SELECT 'FUN' AS rubric, COUNT(*) AS n
+FROM scores WHERE fun_score > 0
+UNION ALL
+SELECT 'NSI', COUNT(*) FROM scores WHERE nsi_score > 0
+UNION ALL
+SELECT 'INSI', COUNT(*) FROM scores WHERE insi_score > 0
+UNION ALL
+SELECT 'ISI', COUNT(*) FROM scores WHERE isi_score > 0
+ORDER BY rubric;"
+```
+
+---

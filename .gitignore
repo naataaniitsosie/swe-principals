@@ -19,3 +19,6 @@ __pycache__
 
 # MAC OS
 .DS_Store
+
+# Sample scores
+sample_scores_gptmini.md
