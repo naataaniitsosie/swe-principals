@@ -2,6 +2,8 @@
 Storage for judge: read cleaned rows from SQLite, write score rows with deduplication.
 Cleaned is normalized (id, cleaned_text, tokens); join with events for repo, created_at, type, author_association.
 Filters are applied at DB query time via JOIN + WHERE; extend CLEANED_JOIN_FILTERS to add more.
+
+Scores table stores the full CONFORMITY LLM schema: FUN, NSI, INSI, ISI (reasoning + 0–3 scores).
 """
 import json
 import sqlite3
@@ -59,13 +61,19 @@ def _build_cleaned_join_query(filters: dict) -> tuple[str, list]:
         sql += " WHERE " + " AND ".join(where_parts)
     return sql, params
 
+
+# Full CONFORMITY LLM output (docs/papers/CONFORMITY_SYSTEM_PROMPT.md).
 SCORES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS scores (
     comment_id TEXT NOT NULL,
     model_name TEXT NOT NULL,
+    fun_score INTEGER NOT NULL,
+    fun_reasoning TEXT NOT NULL,
     nsi_score INTEGER NOT NULL,
-    isi_score INTEGER NOT NULL,
     nsi_reasoning TEXT NOT NULL,
+    insi_score INTEGER NOT NULL,
+    insi_reasoning TEXT NOT NULL,
+    isi_score INTEGER NOT NULL,
     isi_reasoning TEXT NOT NULL,
     created_at TEXT,
     PRIMARY KEY (comment_id, model_name)
@@ -148,17 +156,23 @@ class ScoresWriter:
 
     def _ensure_table(self) -> None:
         conn = sqlite3.connect(str(self._db_path))
-        conn.executescript(SCORES_SCHEMA)
-        conn.commit()
-        conn.close()
+        try:
+            conn.executescript(SCORES_SCHEMA)
+            conn.commit()
+        finally:
+            conn.close()
 
     def write(
         self,
         comment_id: str,
         model_name: str,
+        fun_score: int,
+        fun_reasoning: str,
         nsi_score: int,
-        isi_score: int,
         nsi_reasoning: str,
+        insi_score: int,
+        insi_reasoning: str,
+        isi_score: int,
         isi_reasoning: str,
         created_at: Optional[str] = None,
     ) -> None:
@@ -167,15 +181,20 @@ class ScoresWriter:
         conn.execute(
             """
             INSERT OR REPLACE INTO scores
-            (comment_id, model_name, nsi_score, isi_score, nsi_reasoning, isi_reasoning, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (comment_id, model_name, fun_score, fun_reasoning, nsi_score, nsi_reasoning,
+             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 comment_id,
                 model_name,
+                fun_score,
+                fun_reasoning or "",
                 nsi_score,
-                isi_score,
                 nsi_reasoning or "",
+                insi_score,
+                insi_reasoning or "",
+                isi_score,
                 isi_reasoning or "",
                 created_at,
             ),
@@ -185,17 +204,32 @@ class ScoresWriter:
 
     def write_batch(
         self,
-        rows: list[tuple[str, str, int, int, str, str, Optional[str]]],
+        rows: list[
+            tuple[
+                str,
+                str,
+                int,
+                str,
+                int,
+                str,
+                int,
+                str,
+                int,
+                str,
+                Optional[str],
+            ]
+        ],
     ) -> None:
-        """Write multiple score rows. Each tuple: (comment_id, model_name, nsi_score, isi_score, nsi_reasoning, isi_reasoning, created_at)."""
+        """Write multiple score rows. Each tuple matches JudgeResult.to_row order."""
         if not rows:
             return
         conn = sqlite3.connect(str(self._db_path))
         conn.executemany(
             """
             INSERT OR REPLACE INTO scores
-            (comment_id, model_name, nsi_score, isi_score, nsi_reasoning, isi_reasoning, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (comment_id, model_name, fun_score, fun_reasoning, nsi_score, nsi_reasoning,
+             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )

@@ -5,6 +5,8 @@ Repositories match CONFORMITY.md "Repositories Under Investigation".
 """
 import argparse
 import logging
+
+import project_config  # noqa: F401 — load `.env` from repo root (shared with judge / config)
 from datetime import datetime
 
 from dataset_readers.gharchive.config import REPOSITORIES, DEFAULT_EVENT_TYPES

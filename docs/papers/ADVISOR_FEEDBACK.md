@@ -1,3 +1,9 @@
+## April 8, 2026
+
+### Feedback
+- What venue do you want to publish in? Find a venue and make one your "homebase".
+- Finish a draft of the paper in the summer. Publish in the fall.
+
 ## March 10, 2026
 
 ### Feedback

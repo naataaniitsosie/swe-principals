@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-CLI for LLM judge: score cleaned PR comments with Ollama (NSI/ISI per CONFORMITY rubric).
+CLI for LLM judge: score cleaned PR comments (FUN/NSI/INSI/ISI per CONFORMITY_SYSTEM_PROMPT).
 Reads from cleaned table, writes to scores table in the same DB. Dedupes by (comment_id, model).
 """
 import argparse
 import logging
 from pathlib import Path
 
-from project_config import db_path, JUDGE_DEFAULT_REPO
+from project_config import JUDGE_DEFAULT_REPO
 
-from judge.config import DEFAULT_MODEL, SUPPORTED_MODELS
+from judge.config import DEFAULT_MODEL, DEFAULT_OPENAI_MODEL, SUPPORTED_MODELS, Backend
 from judge.runner import run
 
 logging.basicConfig(
@@ -19,17 +19,35 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+_MODEL_HELP = (
+    f"Model identifier. "
+    f"Ollama backend: short name {list(SUPPORTED_MODELS.keys())} or a full Ollama tag; "
+    f"default if omitted: {DEFAULT_MODEL!r}. "
+    f"OpenAI backend: API model id (e.g. {DEFAULT_OPENAI_MODEL!r}); "
+    f"default if omitted: {DEFAULT_OPENAI_MODEL!r}."
+)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run LLM judge on cleaned PR comments (NSI/ISI scores). Uses Ollama; reads cleaned, writes scores to same DB.",
+        description="Run LLM judge on cleaned PR comments (FUN/NSI/INSI/ISI scores). "
+        "Backends: Ollama (local) or OpenAI API. Reads cleaned, writes scores to same DB.",
+    )
+    parser.add_argument(
+        "--backend",
+        "-b",
+        type=str,
+        choices=("ollama", "openai"),
+        default="ollama",
+        help="ollama (default): local Ollama. openai: OpenAI Chat Completions (requires OPENAI_API_TOKEN).",
     )
     parser.add_argument(
         "--model",
         "-m",
         type=str,
-        default=DEFAULT_MODEL,
-        help=f"Model: one of {list(SUPPORTED_MODELS.keys())} or an Ollama tag (e.g. llama3.1:8b). Default: {DEFAULT_MODEL}",
+        default=None,
+        metavar="NAME",
+        help=_MODEL_HELP,
     )
     parser.add_argument(
         "--limit",
@@ -61,9 +79,11 @@ def parse_args():
 
 def main() -> int:
     args = parse_args()
+    backend: Backend = args.backend  # type: ignore[assignment]
     try:
         num_scored, num_skipped = run(
             model=args.model,
+            backend=backend,
             db_path_override=args.db,
             limit=args.limit,
             skip_existing=args.skip_existing,
