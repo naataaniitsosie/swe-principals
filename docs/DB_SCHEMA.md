@@ -30,11 +30,24 @@ Top-level fields (GHArchive / GitHub API shape):
 | Field         | Type   | Description |
 |---------------|--------|-------------|
 | `id`          | string | Event id (same as table `id`). |
-| `type`        | string | One of: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`. |
+| `type`        | string | Webhook / timeline event name. This project’s four main values are [described below](#meaning-of-top-level-type). |
 | `actor`       | object | User who triggered the event. `id`, `login`, `display_login`. |
 | `repo`        | object | Repository. `name` is `owner/repo` (e.g. `django/django`). |
 | `created_at`  | string | ISO 8601 timestamp. |
 | `payload`     | object | Event-specific data (see below). |
+
+### Meaning of top-level type
+
+Values are GitHub **timeline / webhook** event names ([event payloads overview](https://docs.github.com/en/webhooks/webhook-events-and-payloads)). This project’s extractor commonly keeps four kinds of PR-related activity; **`json_extract(event_data, '$.type')`** returns exactly these strings.
+
+| `type` | Meaning |
+|--------|---------|
+| **`PullRequestEvent`** | Activity on a pull request record itself—opened, edited, closed, labeled, synchronized, assigned, etc. Payload centers on **`pull_request`**. |
+| **`PullRequestReviewEvent`** | A **pull request review** was submitted (approve, request changes, or comment **as a review**). Payload centers on **`review`**. |
+| **`PullRequestReviewCommentEvent`** | A **inline** comment on a **specific line** of the PR diff (review comment). Payload centers on **`comment`**. |
+| **`IssueCommentEvent`** | A **comment** on an issue or pull request **thread** (in GitHub’s model, PRs are issues). Payload centers on **`comment`**. |
+
+You may see other `type` strings if you ingest a broader GHArchive slice.
 
 **Payload by event type:**
 

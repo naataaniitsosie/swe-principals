@@ -117,7 +117,7 @@ See [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.
 
 ---
 
-### Judge (LLM scoring) (`judge.py`)
+### 3. Judge (LLM scoring) (`judge.py`)
 
 Scores cleaned PR comments using the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](docs/papers/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **cleaned**, writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
 
