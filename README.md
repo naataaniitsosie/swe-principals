@@ -178,6 +178,7 @@ OpenAI (default API model is **`gpt-5.4-mini`**; same string is stored in `score
 
 ```bash
 python judge.py --backend openai --limit 200
+python judge.py --backend openai --limit 400 --model gpt-5.4-mini --skip-existing --repo expressjs/express
 python browse_scores.py --model gpt-5.4-mini --sample-n 15
 python browse_scores.py --model gpt-5.4-mini --all > sample_scores_gptmini.md
 ```

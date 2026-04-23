@@ -90,12 +90,6 @@ For example, consider an anecdotal shift in a software project: on day one, a pr
 
 ## Methodology
 
-### Tasks
-- Understand a human baseline of conformity
-  - RQ1
-    - generate a score for the presence of NSI and ISI in PR review comments
-      - curate prompts to evaluate an NSI and ISI score
-
 ### Goal
 Detect the following in PR review comments:
 1. References shared norms
