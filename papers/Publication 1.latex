@@ -1,0 +1,282 @@
+\documentclass[sigconf, 10pt, review]{acmart} % or 'format=sigconf'
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs} % For professional tables
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{todonotes}
+
+\newcommand{\needcite}[1]{\textcolor{red}{[CITATION NEEDED: #1]}}
+\newcommand{\question}[1]{\textcolor{blue}{[QUESTION: #1]}}
+
+% Document Metadata
+\title{Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vehicula pellentesque tellus. In vehicula blandit.}
+\author{Nancy Fulda}
+\email{nfulda@cs.byu.edu}
+\affiliation{%
+  \institution{Brigham Young University}
+  \city{Provo}
+  \state{Utah}
+  \country{USA}
+}
+
+\author{Naataanii Tsosie}
+\email{naataanii.tsosie@byu.edu}
+\affiliation{%
+  \institution{Brigham Young University}
+  \city{Provo}
+  \state{Utah}
+  \country{USA}
+}
+
+\settopmatter{printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{} % Removes this specific copyright block
+
+\begin{document}
+
+% remove date
+\date{}
+
+\maketitle
+\renewenvironment{abstract}{%
+    \small
+    \begin{center}
+        {\bfseries Abstract} % Centered Bold Title
+    \end{center}
+    \quotation % This provides the symmetrical indentation
+    \itshape
+}{%
+    \endquotation
+}
+\begin{abstract}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam posuere libero aliquet tincidunt porta. Nullam sem orci, faucibus ut volutpat a, gravida sed enim. Vivamus urna lorem, ullamcorper id consequat vel, pellentesque non mauris. Maecenas convallis, erat ac volutpat efficitur, lorem augue commodo nunc, at ullamcorper arcu ex et eros. Curabitur semper massa justo, eu suscipit elit scelerisque a. Sed egestas, mauris eget tristique fringilla, odio ante molestie diam, ac porta nulla turpis nec nisi.
+\end{abstract}
+
+\section{Introduction}
+Conformity is a multi-faceted social construct, primarily driven by normative social influence (the desire to be accepted) and informational social influence (the desire to be "correct" based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias \needcite{}. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
+
+While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability, or "functional conformity", with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
+
+\section{Background: Conformity in Software Engineering}
+Conformity is a multi-faceted social construct, primarily driven by \emph{normative social influence} (the desire to be accepted) and \emph{informational social influence} (the desire to be ``correct'' based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
+
+While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability---or ``functional conformity''---with social conformity. As we train Large Language Models (LLMs) to optimize for ``correctness'' based on existing repositories, we risk inadvertently codifying and amplifying these social biases. 
+
+\subsection{Normative Social Influence (NSI)}
+In the context of SE, NSI represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of ``how things are done here.'' NSI serves as the ``gatekeeper'' of project culture. A key tenet is the lack of technical grounding for a requested change, even when a social or stylistic justification is explicitly provided.
+
+\paragraph{Manifestation in PR Reviews.} In practice, NSI typically manifests as:
+\begin{itemize}
+    \item \textbf{Enforcement of established conventions:} Prioritizing aesthetic consistency over technical variation.
+    \item \textbf{Policing deviation:} Identifying and correcting ``out-group'' behaviors or styles.
+    \item \textbf{Novelty suppression:} Discouraging innovation to maintain a predictable, homogenous codebase.
+\end{itemize}
+
+\subsection{Implicit Normative Social Influence (INSI)}
+Implicit NSI enforces conformity through unsubstantiated dissent. In contrast to explicit NSI, where a social norm is clearly stated, INSI creates gatekeeping via ambiguity. The reviewer forces the contributor to guess an unwritten norm and alter functionally correct code simply to appease the reviewer's request.
+
+\begin{table}[ht]
+\caption{Core Distinction: Explicit NSI vs. Implicit NSI}
+\label{tab:nsi_distinction}
+\begin{tabular}{@{}lp{0.35\textwidth}@{}}
+\toprule
+\textbf{Mode} & \textbf{Mechanism of Interaction} \\ \midrule
+\textbf{Explicit NSI} & The reviewer explicitly states the expected behavior (e.g., ``Rewrite this using if/else; that is our style.''). \\
+\textbf{Implicit NSI} & The rule is unarticulated; the feedback contains friction but omits the convention (e.g., ``Are we really doing it this way?'' or ``This feels off...""). \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Informational Social Influence (ISI)}
+While NSI/INSI are driven by the social need for belonging, Informational Social Influence (ISI) is driven by the fundamental desire for accuracy. \needcite{Source on ISI} In the high-stakes environment of SE—where technical ambiguity is common and the cost of error is high—developers frequently look to the group as a primary source of 'truth.' ISI occurs when a contributor adopts the norms of a repository based on the belief that the group possesses superior expertise or that an established pattern represents an objective 'best practice.' By anchoring themselves to the collective wisdom of the group, the individual gains a sense of acceptance, feeling that their implementation is accurate, validated, and technically correct.
+
+For instance, a reviewer might comment, "Please update this routing logic to use the new v3 middleware, as outlined in the core migration docs." The contributor complies not simply to fit in, but because they trust documentation represents the objectively correct state of the system.
+
+\subsection{Culture as Correctness}
+\hl{In human social structures, subjective preference often masquerades as objective correctness. This conflation serves as a foundation for broader social maladies, including racism and systemic prejudice.} When social preferences (NSI) are internalized over time as objective facts (ISI), they become ``hardened'' biases. \question{Is proving the preceding sentence out of scope?} When LLMs are trained on this data, they treat local social history as universal technical truth. \hl{By training on these socio-technical corpora, Large Language Models (LLMs) risk reifying local social histories—and their attendant biases—into universal technical imperatives. This study introduces a framework to operationalize conformity within PR discourse, enabling a formal quantification of the social friction latent in collaborative software development.}
+
+\section{Dataset}
+To analyze the interplay between social influence and technical rigor, we constructed a longitudinal dataset of developer interactions. Unlike static repository snapshots, which reflect only the final "sanitized" state of the code, our methodology prioritizes the interactive timeline to capture the friction inherent in the review process.
+
+\subsection{Data Collection}
+We harvested interaction metadata from GHArchive, which provides a comprehensive record of the public GitHub timeline. We focused on four specific event classes that constitute the primary discourse of a Pull Request:
+\begin{itemize}
+\item \texttt{PullRequestEvent}: High-level metadata regarding PR state transitions.
+\item \texttt{PullRequestReviewEvent}: Summary reviews and overall approval/rejection signals.
+\item \texttt{PullRequestReviewCommentEvent}: Granular, line-level feedback within the code diff.
+\item \texttt{IssueCommentEvent}: General discussion threads often used for architectural debates.
+\end{itemize}
+
+\textit{Subject Domain Selection.} We specifically targeted major API frameworks as our primary data source. These ecosystems are uniquely suited for analyzing socio-technical conformity because they operate at the intersection of rigid protocol constraints (e.g., RFC compliance) and subjective architectural "ergonomics." We selected repositories based on governance maturity and discourse density rather than specific programming languages. This language-agnostic approach ensures that our findings reflect universal patterns of developer collaboration and "gatekeeping" rather than the idiosyncratic stylistic quirks of a single language community (e.g., Python's PEP 8 vs. JavaScript's Prettier).
+
+\subsection{Data Preparation}
+Raw events were ingested and processed through a multi-stage pipeline designed to isolate human sentiment from machine-generated noise.
+
+\paragraph{Deduplication and Integrity.} Events were primary-keyed by their unique GitHub \texttt{id} to prevent double-counting of multi-indexed events. We restricted our temporal window to the 2024 calendar year to ensure the discourse reflects modern "AI-aware" development practices.
+
+\paragraph{Noise Reduction and Bot Pruning.} A significant portion of PR activity is automated. We applied a two-tier filter:
+\begin{itemize}
+\item \textbf{Identity Filtering:} We cross-referenced author handles against a known-bot heuristic list (e.g., \texttt{dependabot}, \texttt{greenkeeper}, \texttt{github-actions}) to remove programmatic enforcement of ISI.
+\item \textbf{Content Sanitization:} We used regular expressions to strip repetitive boilerplate, such as "I've signed the CLA" or automated CI/CD failure reports. Comments containing only "LGTM" or emojis were flagged as "low-signal" and excluded from evaluation pipelines.
+\end{itemize}
+
+\paragraph{Contextual Windowing.} To facilitate accurate labeling, comments were not treated as isolated strings. Each record was enriched with its parent context, including the original PR description and, where applicable, the specific line of code being critiqued. This context is vital for the LLM-as-judge to distinguish between a "hard" functional requirement (FUN) and an "unwritten" project style (INSI).
+
+\paragraph{Formatting and Tokenization.} Finally, all text was normalized to UTF-8, and markdown artifacts (e.g., nested blockquotes from previous emails) were flattened to prevent the judge model from hallucinating scores based on the formatting of a quoted reply rather than the new contribution.
+
+\section{Evaluation}
+\subsection{LLM-as-judge}
+Annotation follows a structured codebook aligned with the constructs in Section~2. Each comment is scored on four \textbf{independent} dimensions, each with a rationale string and an ordinal strength in $\{0,1,2,3\}$:
+\begin{itemize}
+  \item \textbf{FUN} (functional / hard constraint): language tied to breakage, incorrectness, or tests distinct from social pressure.
+  \item \textbf{NSI} (explicit normative social influence): conformity to ``how we do things here'' where the norm or stylistic boundary is \textit{articulated}, even if not technically grounded.
+  \item \textbf{INSI} (implicit normative social influence): friction or disapproval without a stated rule---gatekeeping through ambiguity.
+  \item \textbf{ISI} (informational social influence): appeals to documentation, standards, idiomatic practice, or expert authority as the reason to change.
+\end{itemize}
+
+The judge is implemented as a fixed system prompt (the LLM coding scheme) that requires machine-readable outputs scores plus short reasoning per dimension. Models are invoked through a hosted API; scores are stored per (\texttt{comment\_id}, \texttt{model\_name}) so the same corpus can be re-judged under multiple models without overwriting priors.
+
+\section{Results}
+For this analysis, \texttt{gpt-5.4-mini} served as the judge. We evaluated a sample of 1,000 clean comments drawn from the ExpressJS and Django repositories during the 2024 calendar year.
+
+Figures \ref{fig:fun_counts} through \ref{fig:isi_counts} illustrate the distribution of ordinal scores (0--3) across the four evaluated dimensions (FUN, NSI, INSI, and ISI) categorized by event type.
+
+\subsection{Judge Score Summaries by Repository}
+To better understand the distinct social cultures between the two ecosystems, we aggregated the judge scores by repository (see Table \ref{tab:score_summaries}). \textbf{FUN}, \textbf{NSI}, \textbf{INSI}, and \textbf{ISI} represent the four ordinal dimensions, scored on a scale of $\{0,1,2,3\}$. \textit{Mean} refers to the arithmetic average over the judge runs, while \textit{Median} and \textit{$p_{75}$} represent the standard sample definitions.
+
+\section{Discussion}
+In human social structures, subjective preference often masquerades as objective correctness. This conflation serves as a foundation for broader social maladies, including racism and systemic prejudice. NSI and ISI are deeply intertwined through a process of normalization. For example, consider an anecdotal shift in a software project: on day one, a project leader decides to use camelCase. At this stage, it is a purely social choice (NSI)—conformance is driven by the desire for team cohesion. However, five years later, the community enforces camelCase because they believe it is 'the right way' to write code for the project. The social preference has been internalized as an objective fact (ISI). When LLMs are trained on this data, they inherit this 'hardened' bias, treating local social history as universal technical truth.
+
+\textbf{Given that ISI functions as the dominant mode of conformance in mature ecosystems, an avenue for future research lies in mapping the ontological shift where NSI converges into ISI.} Investigating this transition point where 'how we choose to code' becomes 'how code must be' is essential for deconstructing the latent biases embedded within LLM training distributions.
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{fun.png}
+    \caption{Counts of FUN ordinal scores (0–3) by event type}
+    \label{fig:fun_counts}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{nsi.png} % Update filename if you have nsi.png
+    \caption{Counts of NSI ordinal scores (0–3) by event type}
+    \label{fig:nsi_counts}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{insi.png} % Update filename if you have insi.png
+    \caption{Counts of INSI ordinal scores (0–3) by event type}
+    \label{fig:insi_counts}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{isi.png} % Update filename if you have isi.png
+    \caption{Counts of ISI ordinal scores (0–3) by event type}
+    \label{fig:isi_counts}
+\end{figure}
+
+\begin{table*}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Judge score summaries by repository across the four dimensions.}
+  \label{tab:score_summaries}
+  \begin{tabular}{@{} l r rrr rrr rrr rrr @{}}
+    \toprule
+    \multicolumn{2}{c}{} &
+    \multicolumn{3}{c}{\textbf{FUN}} &
+    \multicolumn{3}{c}{\textbf{NSI}} &
+    \multicolumn{3}{c}{\textbf{INSI}} &
+    \multicolumn{3}{c}{\textbf{ISI}} \\
+    \cmidrule(lr){3-5}
+    \cmidrule(lr){6-8}
+    \cmidrule(lr){9-11}
+    \cmidrule(lr){12-14}
+    \textbf{Repository} &
+    $\mathbf{n}$ &
+    Mean & Med & $p_{75}$ &
+    Mean & Med & $p_{75}$ &
+    Mean & Med & $p_{75}$ &
+    Mean & Med & $p_{75}$ \\
+    \midrule
+    django/django &
+    709 &
+    0.979 & 1 & 2 &
+    0.172 & 0 & 0 &
+    0.360 & 0 & 1 &
+    1.516 & 2 & 2 \\
+    expressjs/express &
+    625 &
+    0.614 & 0 & 1 &
+    0.528 & 0 & 1 &
+    0.699 & 0 & 1 &
+    1.146 & 1 & 2 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\newpage
+\appendix
+\onecolumn
+\section{Appendix}
+\subsubsection*{Conformity System Prompt}
+\begin{lstlisting}[breaklines=true, frame=single, basicstyle=\footnotesize\ttfamily, columns=flexible]
+**Annotator Instructions**
+
+**Objective:** You are a research assistant specializing in Social Psychology and Software Engineering. Your goal is to determine if a Pull Request comment is enforcing a functional technical requirement (FUN), an explicit social norm (NSI), an implicit social norm (INSI), or an expert best practice (ISI).
+
+**Scoring Philosophy:**
+- **FUN (Functional):** Objective correctness. The code is "broken" without this change.
+- **NSI (Normative Social Influence):** Social belonging. The code is "unwelcome" without this change.
+- **INSI (Implicit Normative Social Influence):** Social belonging. The code is "unwelcome" without this change. The reasoning is not verbally articulated by the reviewer.
+- **ISI (Informational Social Influence):** Expert accuracy. The code is "suboptimal" without this change.
+
+**Strict Constraints:**
+1. **Ignore Tone:** Politeness (e.g., "Would you mind...") does not increase NSI or INSI.
+2. **Don't score for simple helpfulness:** If advice is just a useful suggestion—and not about following a project rule or fixing a functional problem—give it a score of 0.
+3. **Primary Driver:** Identify the *stated reason*. If a stylistic or structural change is demanded but NO reason or rule is explicitly stated, this is Implicit (INSI). NSI requires the reviewer to explicitly invoke the team, project norms, or 'how we do things here.'
+4. **Bare Code Suggestions:** If a comment consists solely of a code snippet or a GitHub "Suggested Change" with no text explaining why, score all categories as 0 unless the snippet is clearly fixing an objective functional bug (FUN).
+5. **Output Format:** Output only valid JSON. Do not include markdown code blocks (e.g., ```json), preambles, or postscripts.
+6. **Independent Dimensions:** Evaluate FUN, NSI, INSI, and ISI independently. A single comment can score highly in multiple categories if it contains multiple types of influence.
+
+**Task:**
+For each comment, output a JSON object with `fun_reasoning`, `fun_score`, `nsi_reasoning`, `nsi_score`, `insi_reasoning`, `insi_score`, `isi_reasoning`, and `isi_score`.
+Scores are 0–3: 0 (None), 1 (Weak/Suggestion), 2 (Moderate/Expectation), 3 (Strong/Requirement).
+
+**Schema completeness:** Every response must include **all** keys above, every time. Do not omit keys when a score is 0.
+
+**Examples for LLM Calibration:**
+
+1. **Pure Functional (Hard Constraint)**
+   - *Input:* "If you don't close this stream, it will cause a memory leak in production."
+   - *Output:* `{"fun_reasoning":"The comment cites a concrete runtime failure (memory leak) if the stream is not closed—this is a functional correctness requirement.","fun_score":3,"nsi_reasoning":"There’s no mention of any group norm or expectation—this is just a straightforward warning about a technical problem.","nsi_score":0,"insi_reasoning":"The reviewer states the technical problem directly; there is no implicit social pressure to guess an unstated rule.","insi_score":0,"isi_reasoning":"The commenter doesn’t refer to documentation or expert guidance—just the direct consequence of a bug.","isi_score":0}`
+
+2. **Pure NSI (Social Gatekeeping)**
+   - *Input:* "We don't use those types of variable names here. It makes the code look messy. Please stick to our naming style."
+   - *Output:* `{"fun_reasoning":"The comment does not allege a bug or correctness failure—only naming style.","fun_score":0,"nsi_reasoning":"The language focuses on fitting into the group’s established style. There is a clear push to follow “how we do things,” independent of technical necessity.","nsi_score":3,"insi_reasoning":"The norm is explicitly stated (naming style, how we do things), not left implicit.","insi_score":0,"isi_reasoning":"The comment does not appeal to any external authority or documentation, just to group convention.","isi_score":0}`
+
+3. **Pure INSI (Implicit Normative Social Influence)**
+   - *Input:* "Hmm, I'm really not sure we want to be doing this here..."
+   - *Output:* `{"fun_reasoning":"No functional defect or bug is identified in the code.","fun_score":0,"nsi_reasoning":"No specific stylistic rule or convention is explicitly stated for the contributor to follow.","nsi_score":0,"insi_reasoning":"The reviewer expresses disapproval and creates social friction without providing technical justification or stating the violated norm. This forces the contributor to guess the unwritten rule.","insi_score":3,"isi_reasoning":"No documentation, facts, or logical arguments are provided.","isi_score":0}`
+
+4. **Pure ISI (Technical/Expert Authority)**
+   - *Input:* "According to the official documentation for this API version, this method is deprecated. You should use the new async handler to avoid future compatibility issues."
+   - *Output:* `{"fun_reasoning":"The comment ties the change to API deprecation and future compatibility—addressing real technical risk, not just aesthetics.","fun_score":2,"nsi_reasoning":"There’s no suggestion that this is about fitting in with the team or following an internal style—just an external technical reason.","nsi_score":0,"insi_reasoning":"The reviewer states the reason explicitly (official documentation), not an implicit vibe.","insi_score":0,"isi_reasoning":"The reasoning is anchored in an explicit reference to official documentation, representing a strong appeal to expert or authoritative guidance.","isi_score":3}`
+
+5. **The Masquerade (Hybrid)**
+   - *Input:* "Please use camelCase here; it's our project standard and it ensures our auto-generation tools can index the API correctly per the README."
+   - *Output:* `{"fun_reasoning":"Part of the justification is functional (tooling/indexing), though the main drivers are norm and documentation.","fun_score":2,"nsi_reasoning":"There’s an obvious expectation to follow the group’s standard (project style), though the push is a little softer than a pure “fit in” argument.","nsi_score":2,"insi_reasoning":"Both project standard and README are invoked explicitly; the expectation is not implicit.","insi_score":0,"isi_reasoning":"The comment appeals to a written standard (the README), which carries authority, but it’s not quite as strong as citing official technical specifications or documentation.","isi_score":2}`
+
+6. **Bare Code Suggestion (Zero-Text)**
+   - *Input:* ```python\n- var x = 5\n+ current_count = 5\n```
+   - *Output:* `{"fun_reasoning":"The snippet changes a variable name; it does not fix a functional bug.","fun_score": 0,"nsi_reasoning":"No text is provided to explicitly invoke group norms.","nsi_score": 0,"insi_reasoning":"Per Constraint 4 bare code suggestions without explanatory text are treated as simple helpfulness,not implicit social influence.","insi_score": 0,"isi_reasoning": "No external authority or documentation is cited.","isi_score": 0}`
+\end{lstlisting}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references} % This looks for a file named references.bib
+\end{document}
