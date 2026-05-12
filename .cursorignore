@@ -1,0 +1,8 @@
+# Data Directory
+data/
+
+# DB Files
+*.db
+
+# Environment Files
+.env
