@@ -2,6 +2,34 @@
 
 The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI API**, with the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../docs/papers/CONFORMITY_SYSTEM_PROMPT.md) (see also [CONFORMITY.md](../docs/papers/CONFORMITY.md)). It reads from the **cleaned** table and writes **scores**: for each dimension **FUN, NSI, INSI, ISI** — reasoning text plus a 0–3 score (same JSON schema as the prompt).
 
+**Quick note:** Judges are chosen for size consistency so comparisons are not confounded by models that are too powerful or too weak for the rubric.
+
+## Social Judges (NSI/INSI Detection)
+
+*These models focus on human nuance, social psychology, and stylistic gatekeeping.*
+
+*Size: dense models list total parameters; Mixture of Experts (MoE) models list active parameters with total MoE parameters in parentheses; em dash when the vendor does not publish counts (API-only judges).*
+
+| Model | Size | Role | Access |
+|-------|------|------|--------|
+| Claude Sonnet 4.6 | — | Primary Social Judge. Expert at detecting passive-aggression and social cues. | OpenRouter |
+| Gemma 4 31B | 31B | Logical Consistency. Identifies contradictory rules and "principled" social errors. | Ollama |
+| Mistral Large 3 | 41B active (675B MoE) | Cultural Baseline. Provides a non-US centric perspective on social interactions. | OpenRouter |
+| Phi-4-Reasoning-Vision-15B | 15B | CoT Specialist. Ideal for generating long Chain-of-Thought reasoning for "vibes." | Ollama |
+| GPT-5.4 mini | — | The Control Group. Standardized baseline for intent and instruction following. | OpenAI API |
+
+## Technical Judges (FUN/ISI Detection)
+
+*These models focus on rigid syntax, functional correctness, and performance logic.*
+
+| Model | Size | Role | Access |
+|-------|------|------|--------|
+| DeepSeek-V3.2 | 37B active (671B MoE) | SOTA Code Intelligence. Best for distinguishing logic flaws from stylistic choices. | OpenRouter |
+| Qwen3-Coder-Next | 3B active (80B MoE) | Local Powerhouse. Specialized in deep syntax and repository-wide standards. | Ollama |
+| o4-mini | — | Logical Verifier. Uses internal reasoning to verify if technical claims are factually true. | OpenAI API |
+| StarCoder 2 15B Instruct | 15B | Socially Blind. Trained on raw code data; treats social pressure as irrelevant noise. | Ollama |
+| Granite Code 34B | 34B | Enterprise Rigor. Detects "hardened" standards vs. subjective developer preferences. | Ollama |
+
 ## Prerequisites
 
 1. **Backend (pick one or both):**
