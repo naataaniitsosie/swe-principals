@@ -1,0 +1,20 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python-envs.pythonProjects": [],
+    "files.exclude": {
+        ".env": true,
+        ".env.*": true,
+        "data": true
+    },
+    "search.exclude": {
+        ".env": true,
+        ".env.*": true,
+        "data": true
+    },
+    "github.copilot.enable": {
+        "*": false,
+        "plaintext": false,
+        "markdown": false
+    }
+}
