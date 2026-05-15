@@ -1,0 +1,10 @@
+{
+  "sandbox": {
+    "filesystem": {
+      "denyRead": [
+        "/Users/naataaniitsosie/repos/swe-principals/.env",
+        "/Users/naataaniitsosie/repos/swe-principals/data"
+      ]
+    }
+  }
+}
