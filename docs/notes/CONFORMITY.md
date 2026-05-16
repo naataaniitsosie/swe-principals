@@ -144,15 +144,19 @@ API frameworks have a long history of standardized conventions and best practice
 | [pallets/flask](https://github.com/pallets/flask) | Web framework for Python | Python | Yes | 2010-04-06 |
 | [gin-gonic/gin](https://github.com/gin-gonic/gin) | Web framework for Go | Go | Yes | 2014-07-25 |
 
-#### Approximate data volume (all 10 repos, 2024 + 2025)
+#### Data volume (all 10 repos, 2024)
 
-With the default config (4 event types: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`), for **2024-01-01 through 2025-12-31** and all 10 repositories, the extractor fetches each hour once and partitions events by repo (one output file per repo):
+**Current dataset:** All 10 repositories, **2024-01-01 through 2024-12-30** (one year).
 
-| Metric | Approximate |
+With the default config (4 event types: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`), the extractor fetches each hour once and partitions events by repo (one output file per repo):
+
+| Metric | Actual (2024) |
 |--------|-------------|
-| **Time range** | 731 days → 17,544 hourly files |
-| **Download** | Each hour is fetched **once** (for all repos). Raw hourly `.json.gz` files are ~100–150 MB each → **~1.7–2.6 TB** downloaded. |
-| **Output (saved)** | Only events that match one of the 10 repos and one of the 4 event types. Roughly **tens of thousands to low hundreds of thousands** of events total (e.g. 50k–300k), **~100 MB–1.5 GB** on disk (JSONL, one file per repo). |
+| **Time range** | 2024-01-01 to 2024-12-30 (~364 days) |
+| **Events (raw)** | ~41,936 raw GitHub events across all 10 repos |
+| **Events (cleaned)** | ~37,197 comments after preprocessing (bot/CI filtering, text extraction, tokenization) |
+| **Scores** | ~2,000 comments scored with gpt-5.4-mini |
+| **Size on disk** | SQLite DB at `data/raw/events.db` |
 
 To get real numbers, run a short test and scale up:
 
