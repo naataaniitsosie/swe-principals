@@ -118,6 +118,29 @@ python judge.py --backend ollama --model starcoder2:15b --limit 40000
 
 Output: Both models score all comments on all four dimensions. Scores stored in SQLite `scores` table.
 
+#### macOS: Preventing Sleep During Long Runs
+
+Scoring 40K comments takes hours. On macOS, the system will sleep and pause Ollama unless prevented. Use `caffeinate` to keep the system awake:
+
+```bash
+# Prevent idle and system sleep during model scoring
+caffeinate -i -s python judge.py --backend ollama --model phi4 --limit 40000
+caffeinate -i -s python judge.py --backend ollama --model starcoder2:15b --limit 40000
+```
+
+**`caffeinate` flags:**
+- `-i` — Prevent idle sleep (keeps CPU active)
+- `-s` — Prevent system sleep (only works when plugged in to power)
+- `-d` — Also prevent display sleep (optional; not needed for CLI runs)
+
+`caffeinate` only stays active while its child process (here, `python judge.py`) is running. When the script exits, normal sleep behavior resumes.
+
+**Recommended setup:**
+1. Plug your Mac into power before starting
+2. Close unnecessary applications
+3. Use `caffeinate -i -s` (allows display to sleep but keeps system running)
+4. Consider running overnight
+
 ### Extract Pair Scores
 
 For each pair and each model:
@@ -201,9 +224,9 @@ Minimum thresholds for each model × dimension combination:
 ollama pull phi4
 ollama pull starcoder2:15b
 
-# 2. Score all comments
-python judge.py --backend ollama --model phi4 --limit 40000
-python judge.py --backend ollama --model starcoder2:15b --limit 40000
+# 2. Score all comments (use caffeinate on macOS to prevent sleep)
+caffeinate -i -s python judge.py --backend ollama --model phi4 --limit 40000
+caffeinate -i -s python judge.py --backend ollama --model starcoder2:15b --limit 40000
 
 # 3. Create preference pairs
 # Manual curation: read comments, select pairs
