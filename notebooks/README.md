@@ -5,45 +5,42 @@ Interactive analysis of the conformity dataset. All notebooks import from `noteb
 ## Notebooks
 
 ### [data_explorer.ipynb](data_explorer.ipynb)
-**Exploratory data analysis** — Understand dataset coverage, distribution of scores across metadata dimensions, and patterns in comments.
+**Dataset overview** — Understand what's in the data *before scoring*. Shows preprocessing pipeline and coverage.
 
-- Loads raw `events`, `cleaned`, `scores` tables
-- Shows preprocessing coverage (raw events → cleaned → scored)
-- Groups scores by repo, event type, author association, actor, and week
-- Two-way breakdowns (repo × event_type, repo × author_association) as heatmaps
-- Top-N bucketing for high-cardinality dimensions (actors)
+- Loads raw `events` and preprocessed `cleaned` tables (no scores)
+- Shows preprocessing coverage: events → cleaned (% that survived preprocessing)
+- Breaks down cleaned comments by repo, event type, and author association
+- Displays samples of cleaned comment text
 
-**Start here** to get a sense of what's in the data.
+**Start here** to understand the dataset structure and what preprocessing does.
 
 ### [score_analysis.ipynb](score_analysis.ipynb)
-**Quantitative analysis of judge outputs** — Compute statistics on FUN/NSI/INSI/ISI scores across all breakdowns, visualize distributions, and identify patterns.
+**Judge analysis** — Quantitative analysis of judge models and their outputs. Statistics on FUN/NSI/INSI/ISI scores.
 
-- Loads scores with full metadata context (repo, author_association, user_login, event_type)
-- Computes per-group quantiles (count, mean, median, p25, p50, p75, p99)
+- Shows which judge models scored comments and how many scores each produced
+- Computes per-group quantiles (count, mean, median, p25, p50, p75, p99) across all dimensions
 - Marginal histograms (ordinal 0–3 counts) — full cohort vs all-zero-filtered
 - Stacked bar charts by repo and event type
 - Analyzes all-zero score rows (judge assigned no signal) with samples
 
-**Use this** for statistical summaries and publication-ready visualizations.
+**Use this** for statistical summaries and publication-ready visualizations of judge output.
 
 ## Quick Start
 
-1. **Navigate to notebook directory:**
+1. **Start with dataset overview:**
    ```bash
    cd notebooks/
-   ```
-
-2. **Launch Jupyter:**
-   ```bash
    jupyter notebook data_explorer.ipynb
    ```
-   The first code cell will add the repo root to `sys.path`, so imports work from either the repo root or `notebooks/` folder.
+   This shows preprocessing coverage and data distribution *before* any scoring happened.
 
-3. **Check available models:**
-   Run the "Available judge models" cell to see which `model_name` values exist in `scores.model_name`.
+2. **Then analyze judge output:**
+   ```bash
+   jupyter notebook score_analysis.ipynb
+   ```
+   This shows which models scored the data and detailed statistics on all scores.
 
-4. **Pick a model and run:**
-   Set `MODEL_NAME` in **data_explorer** (e.g., `"gpt-5.4-mini"`), then run all cells. Same approach in **score_analysis**.
+**Note:** The first code cell in each notebook adds the repo root to `sys.path`, so imports work from either the repo root or `notebooks/` folder. Both notebooks load and display data automatically — just run cells top-to-bottom.
 
 ## Helper Library: `lib/`
 
@@ -84,9 +81,9 @@ from notebooks.lib import (
 
 **Simplicity first:** Notebooks focus on analysis flow, not plumbing. Common patterns (database queries, grouping, plotting) are extracted into the library.
 
-**Semantic separation:**
-- **data_explorer** — What's in the data? Coverage, distributions, patterns.
-- **score_analysis** — What do the scores show? Statistics, quantiles, trends.
+**Clear separation:**
+- **data_explorer** — Pre-scoring analysis. What's in the dataset? Preprocessing coverage and distribution across metadata dimensions. **Contains no score data.**
+- **score_analysis** — Post-scoring analysis. Which judge models scored the data? What do the scores show? Statistics, quantiles, distributions.
 
 **Reusability:** The library is self-contained and can be imported from other scripts or notebooks without running Jupyter cells.
 
