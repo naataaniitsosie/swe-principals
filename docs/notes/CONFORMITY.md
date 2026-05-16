@@ -87,6 +87,7 @@ For example, consider an anecdotal shift in a software project: on day one, a pr
 ### Research Questions (RQs)
 1. To what extent can we linguistically distinguish between social gatekeeping (NSI) and technical guidance (ISI) in historical PR comments?
 2. Do instruction-tuned and code-refined LLMs exhibit a higher "Conformity Bias" than the human baseline when generating or evaluating PR feedback? (Phase 3)
+3. Does model training focus correlate with scoring performance on specific conformity dimensions? Specifically: are social-focused models (e.g., Phi-4, Claude Sonnet, Gemma) better at scoring social dimensions (NSI/INSI) than code-focused models (e.g., StarCoder, DeepSeek, Qwen3-Coder)? Is the inverse true for technical dimensions (FUN/ISI)? See [`MODEL_LIST.md`](MODEL_LIST.md) for model categorization.
 
 ## Methodology
 
@@ -167,6 +168,10 @@ python dataset.py --start-date 2024-01-01 --end-date 2025-01-01 --output-dir ./d
 ```
 
 This command collected all GitHub events from January 1, 2024 through December 31, 2024 for the 10 repositories under investigation.
+
+#### Judge Validation (Meta-Evaluation)
+
+Before using LLM judge outputs for analysis, we validate the scoring rubric through **preference-based meta-evaluation**. See [`docs/notes/META_EVALUATION.md`](META_EVALUATION.md) for methodology and implementation.
 
 ### Scoring
 
