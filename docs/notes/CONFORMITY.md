@@ -144,31 +144,29 @@ API frameworks have a long history of standardized conventions and best practice
 | [pallets/flask](https://github.com/pallets/flask) | Web framework for Python | Python | Yes | 2010-04-06 |
 | [gin-gonic/gin](https://github.com/gin-gonic/gin) | Web framework for Go | Go | Yes | 2014-07-25 |
 
-#### Data volume (all 10 repos, 2024)
+#### Data volume (all 10 repos, all of 2024)
 
-**Current dataset:** All 10 repositories, **2024-01-01 through 2024-12-30** (one year).
+**Dataset:** All 10 repositories across the **complete 2024 calendar year: 2024-01-01 through 2024-12-31**.
 
 With the default config (4 event types: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`), the extractor fetches each hour once and partitions events by repo (one output file per repo):
 
 | Metric | Actual (2024) |
 |--------|-------------|
-| **Time range** | 2024-01-01 to 2024-12-30 (~364 days) |
-| **Events (raw)** | ~41,936 raw GitHub events across all 10 repos |
-| **Events (cleaned)** | ~37,197 comments after preprocessing (bot/CI filtering, text extraction, tokenization) |
-| **Scores** | ~2,000 comments scored with gpt-5.4-mini |
+| **Time range** | 2024-01-01 to 2024-12-31 (full calendar year, 366 days) |
+| **Events (raw)** | GitHub events across all 10 repos |
+| **Events (cleaned)** | Comments after preprocessing (bot/CI filtering, text extraction, tokenization) |
+| **Scores** | Comments scored with gpt-5.4-mini |
 | **Size on disk** | SQLite DB at `data/raw/events.db` |
 
-To get real numbers, run a short test and scale up:
+#### Data collection
+
+To extract data for a specific date range:
 
 ```bash
-python dataset.py --start-date 2024-06-01 --end-date 2024-06-02 --output-dir ./data/raw
-```
-Once tested, use the full date range and output directory.
-```bash
-python dataset.py --start-date 2024-01-01 --end-date 2025-12-31 --output-dir ./data/2024-2025-raw
+python dataset.py --start-date 2024-01-01 --end-date 2025-01-01 --output-dir ./data/raw
 ```
 
-Check event counts in the logs and output file sizes; multiply by (731 / 2) for a rough full 2024+2025 extrapolation.
+This command collected all GitHub events from January 1, 2024 through December 31, 2024 for the 10 repositories under investigation.
 
 ### Scoring
 
