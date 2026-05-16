@@ -34,7 +34,7 @@ The (Kaggle GitHub Repos)[https://www.kaggle.com/datasets/github/github-repos] d
 ### Configuration
 (Optional) Create environment using Conda/Miniconda:
 ```
-conda create -n swe-principals python=3.10
+conda create -n swe-principals python=3.12
 ```
 
 Activate Conda Environment:
