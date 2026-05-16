@@ -1,4 +1,5 @@
-# Optional: analytics notebooks (install with: pip install -r requirements-notebooks.txt)
+# Optional: install after requirements.txt for exploratory analysis notebooks
+# Install with: pip install -r requirements-notebooks.txt
 pandas>=2.0.0
 matplotlib>=3.7.0
 jupyter>=1.0.0

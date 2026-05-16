@@ -1,3 +1,57 @@
+## Installation
+
+### Prerequisites
+- **Python 3.10+** (recommend using `miniconda` or `conda`)
+- **SQLite 3** (included with Python)
+- **Conda** (if using the provided environment setup)
+
+### Step 1: Create and activate the conda environment
+
+```bash
+conda create -n swe-principals python=3.10
+conda activate swe-principals
+```
+
+### Step 2: Install core dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+This installs: `requests`, `transformers`, `torch`, `ollama`, `openai`, `python-dotenv`.
+
+### Step 3 (Optional): Install notebook dependencies
+
+If you plan to use the analysis notebooks (exploratory data analysis, statistical summaries, visualizations):
+
+```bash
+pip install -r requirements-notebooks.txt
+```
+
+This adds: `pandas`, `matplotlib`, `jupyter`, `ipykernel`.
+
+### Step 4 (Optional): Set up Jupyter kernel
+
+To run notebooks in VSCode with the conda environment:
+
+```bash
+python -m ipykernel install --user --name swe-principals --display-name "Python (swe-principals)"
+```
+
+Then in VSCode, select **"Python (swe-principals)"** from the kernel dropdown (top right of notebook) and run cells.
+
+### Environment Variables
+
+Create a `.env` file in the repository root for secrets (e.g., OpenAI API token):
+
+```bash
+echo "OPENAI_API_TOKEN=sk-..." > .env
+```
+
+**Note:** `.env` is listed in `.gitignore`; do not commit it.
+
+---
+
 ## Models and Inference
 
 
