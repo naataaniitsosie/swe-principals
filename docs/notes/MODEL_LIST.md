@@ -10,13 +10,13 @@ Complete list of Ollama and API-based models for LLM scoring. See [`judge/README
 
 *Trained on human interactions, reasoning about nuance, and understanding social context.*
 
-| Model | Size | Background | Access |
-|-------|------|-----------|--------|
-| Claude Sonnet 4.6 | — | General assistant with strong reasoning capability. | OpenRouter |
-| Gemma 4 | 31B | General instruction-tuned model. | Ollama |
-| Mistral Large 3 | 41B active (675B MoE) | General instruction-tuned, multilingual. | OpenRouter |
-| Phi-4-Reasoning-Vision-15B | 15B | Reasoning-specialized, chain-of-thought capable. | Ollama |
-| GPT-5.4 mini | — | General instruction-tuned baseline. | OpenAI API |
+| Model | Size | Background | Hugging Face | Ollama Install | Access |
+|-------|------|-----------|--------------|----------------|--------|
+| Claude Sonnet 4.6 | — | General assistant with strong reasoning capability. | — (proprietary) | — | OpenRouter |
+| Gemma 4 | 31B | General instruction-tuned model. | [google/gemma-4-31B-it](https://huggingface.co/google/gemma-4-31B-it) | `ollama pull gemma4:31b` | Ollama |
+| Mistral Large 3 | 41B active (675B MoE) | General instruction-tuned, multilingual. | [mistralai/Mistral-Large-3-675B-Instruct-2512](https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512) | — (not on Ollama) | OpenRouter |
+| Phi-4-Reasoning-Vision-15B | 15B | Reasoning-specialized, chain-of-thought capable. | [microsoft/Phi-4-reasoning-vision-15B](https://huggingface.co/microsoft/Phi-4-reasoning-vision-15B) | — (text-only `phi4-reasoning` available; no vision tag) | Ollama |
+| GPT-5.4 mini | — | General instruction-tuned baseline. | — (proprietary) | — | OpenAI API |
 
 ---
 
@@ -24,13 +24,13 @@ Complete list of Ollama and API-based models for LLM scoring. See [`judge/README
 
 *Trained on source code and programming tasks.*
 
-| Model | Size | Background | Access |
-|-------|------|-----------|--------|
-| DeepSeek-V3.2 | 37B active (671B MoE) | Code-specialized, deep reasoning. | OpenRouter |
-| Qwen3-Coder-Next | 3B active (80B MoE) | Code-specialized, lightweight. | Ollama |
-| o4-mini | — | Reasoning-focused code model. | OpenAI API |
-| StarCoder 2 15B Instruct | 15B | Code-specialized, instruction-tuned. | Ollama |
-| Granite Code 34B | 34B | Code-specialized, enterprise-focused. | Ollama |
+| Model | Size | Background | Hugging Face | Ollama Install | Access |
+|-------|------|-----------|--------------|----------------|--------|
+| DeepSeek-V3.2 | 37B active (671B MoE) | Code-specialized, deep reasoning. | [deepseek-ai/DeepSeek-V3.2](https://huggingface.co/deepseek-ai/DeepSeek-V3.2) | — (not on Ollama) | OpenRouter |
+| Qwen3-Coder-Next | 3B active (80B MoE) | Code-specialized, lightweight. | [Qwen/Qwen3-Coder-Next](https://huggingface.co/Qwen/Qwen3-Coder-Next) | `ollama pull qwen3-coder-next` | Ollama |
+| o4-mini | — | Reasoning-focused code model. | — (proprietary) | — | OpenAI API |
+| StarCoder 2 15B Instruct | 15B | Code-specialized, instruction-tuned. | [bigcode/starcoder2-15b-instruct-v0.1](https://huggingface.co/bigcode/starcoder2-15b-instruct-v0.1) | `ollama pull starcoder2:instruct` | Ollama |
+| Granite Code 34B | 34B | Code-specialized, enterprise-focused. | [ibm-granite/granite-34b-code-instruct-8k](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k) | `ollama pull granite-code:34b` | Ollama |
 
 ---
 
@@ -41,16 +41,17 @@ Complete list of Ollama and API-based models for LLM scoring. See [`judge/README
 Pull any Ollama model:
 
 ```bash
-ollama pull phi4                    # Phi-4-Reasoning
-ollama pull starcoder2:15b          # StarCoder 2 15B
-ollama pull gemma:31b               # Gemma 4 31B
+ollama pull gemma4:31b              # Gemma 4 31B
+ollama pull qwen3-coder-next        # Qwen3-Coder-Next (80B MoE, 3B active)
+ollama pull starcoder2:instruct     # StarCoder 2 15B Instruct
+ollama pull granite-code:34b        # Granite Code 34B
 ```
 
 Score with Ollama backend:
 
 ```bash
-python judge.py --backend ollama --model phi4
-python judge.py --backend ollama --model starcoder2:15b
+python judge.py --backend ollama --model gemma4:31b
+python judge.py --backend ollama --model starcoder2:instruct
 ```
 
 ### OpenAI Setup
