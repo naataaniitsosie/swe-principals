@@ -37,6 +37,7 @@ class OllamaJudge:
                 {"role": "system", "content": self._system_prompt},
                 {"role": "user", "content": user_message},
             ],
+            format="json",
         )
         content = response.get("message", {}).get("content", "") or ""
         raw = content.strip()

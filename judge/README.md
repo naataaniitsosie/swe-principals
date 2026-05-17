@@ -1,6 +1,6 @@
 # Judge — LLM scoring (FUN / NSI / INSI / ISI)
 
-The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI API**, with the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../docs/papers/CONFORMITY_SYSTEM_PROMPT.md) (see also [CONFORMITY.md](../docs/papers/CONFORMITY.md)). It reads from the **cleaned** table and writes **scores**: for each dimension **FUN, NSI, INSI, ISI** — reasoning text plus a 0–3 score (same JSON schema as the prompt).
+The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI API**, with the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (see also [CONFORMITY.md](../docs/notes/CONFORMITY.md)). It reads from the **cleaned** table and writes **scores**: for each dimension **FUN, NSI, INSI, ISI** — reasoning text plus a 0–3 score (same JSON schema as the prompt).
 
 **Quick note:** Judges are chosen for size consistency so comparisons are not confounded by models that are too powerful or too weak for the rubric.
 
@@ -13,7 +13,7 @@ The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI AP
 | Model | Size | Role | Access |
 |-------|------|------|--------|
 | Claude Sonnet 4.6 | — | Primary Social Judge. Expert at detecting passive-aggression and social cues. | OpenRouter |
-| Gemma 4 31B | 31B | Logical Consistency. Identifies contradictory rules and "principled" social errors. | Ollama |
+| Gemma 4 E4B | 4B effective | Practical local social/general judge for full scoring. | Ollama |
 | Mistral Large 3 | 41B active (675B MoE) | Cultural Baseline. Provides a non-US centric perspective on social interactions. | OpenRouter |
 | Phi-4-Reasoning-Vision-15B | 15B | CoT Specialist. Ideal for generating long Chain-of-Thought reasoning for "vibes." | Ollama |
 | GPT-5.4 mini | — | The Control Group. Standardized baseline for intent and instruction following. | OpenAI API |
@@ -33,7 +33,7 @@ The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI AP
 ## Prerequisites
 
 1. **Backend (pick one or both):**
-   - **Ollama:** installed and running ([ollama.ai](https://ollama.ai)). Pull a model, e.g. `ollama pull llama3.1:8b`.
+   - **Ollama:** installed and running ([ollama.ai](https://ollama.ai)). Pull a model, e.g. `ollama pull gemma4:e4b`.
    - **OpenAI:** `pip install openai` (included in `requirements.txt`). Set **`OPENAI_API_TOKEN`** for the OpenAI API. **Default:** put it in a **`.env`** file at the **repository root** (same folder as `project_config.py`); it is loaded automatically when you run the judge—no need to `export` unless you prefer. Do not commit `.env` (it is gitignored). Default API model: `gpt-5.4-mini` (override with `--model`).
 2. **Python deps:** from the repo root: `pip install -r requirements.txt`.
 3. **Data:** The **cleaned** table must exist in the project DB (run `python preprocess.py` after extraction if needed). Default DB path: `data/raw/events.db` (see `project_config.py`).
@@ -43,10 +43,15 @@ The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI AP
 From the **repository root** (not inside `judge/`):
 
 ```bash
-# Ollama (default backend), default short model from judge/config.py
+# Ollama (default backend), default model from judge/config.py
 python judge.py
 
-python judge.py --model llama
+python judge.py --model gemma4-e4b
+python judge.py --model phi4
+python judge.py --model qwen3-coder
+python judge.py --model starcoder2-3b
+python judge.py --model starcoder2
+python judge.py --model granite-code
 
 # OpenAI Chat Completions (OPENAI_API_TOKEN in .env at repo root, or export)
 python judge.py --backend openai
@@ -68,11 +73,11 @@ python judge.py --db path/to/events.db
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--backend` | `-b` | `ollama` | `ollama` (local) or `openai` (API; needs `OPENAI_API_TOKEN`). |
-| `--model` | `-m` | see help | Ollama: short name (`llama`, `gemma`) or full tag. OpenAI: API model id. Defaults differ per backend. |
+| `--model` | `-m` | see help | Ollama: supported name (`gemma4-e4b`, `phi4`, `qwen3-coder`, `starcoder2-3b`, `starcoder2`, `granite-code`) or full tag. OpenAI: API model id. Defaults differ per backend. |
 | `--limit` | `-n` | none | Maximum number of comments to score. |
 | `--skip-existing` | — | off | Skip comments that already have a score for this model. |
 | `--db` | — | `project_config` | Path to the SQLite database. |
-| `--repo` | `-r` | see `project_config` | Restrict to one repo (`owner/name`), or empty for all. |
+| `--repo` | `-r` | all repos | Restrict to one repo (`owner/name`). |
 
 ## Database schema
 
@@ -126,6 +131,6 @@ The next `python judge.py` will recreate `scores` on first write. If you had an 
 
 ## Rubric
 
-The system prompt and scoring rules are defined in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../docs/papers/CONFORMITY_SYSTEM_PROMPT.md). `judge/rubric.py` loads that file verbatim as the system prompt. The model must return a single JSON object with all eight keys (`fun_*`, `nsi_*`, `insi_*`, `isi_*`); the judge parses and persists every field to SQLite.
+The system prompt and scoring rules are defined in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md). `judge/rubric.py` loads that file verbatim as the system prompt. The model must return a single JSON object with all eight keys (`fun_*`, `nsi_*`, `insi_*`, `isi_*`); the judge parses and persists every field to SQLite.
 
 Implementation: [`judge/ollama_judge.py`](ollama_judge.py) (Ollama), [`judge/gpt_judge.py`](gpt_judge.py) (OpenAI), shared parsing in [`judge/judge_result.py`](judge_result.py).

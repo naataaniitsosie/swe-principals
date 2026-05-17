@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _MODEL_HELP = (
     f"Model identifier. "
-    f"Ollama backend: short name {list(SUPPORTED_MODELS.keys())} or a full Ollama tag; "
+    f"Ollama backend: supported name {list(SUPPORTED_MODELS.keys())} or a full Ollama tag; "
     f"default if omitted: {DEFAULT_MODEL!r}. "
     f"OpenAI backend: API model id (e.g. {DEFAULT_OPENAI_MODEL!r}); "
     f"default if omitted: {DEFAULT_OPENAI_MODEL!r}."
@@ -72,7 +72,7 @@ def parse_args():
         "-r",
         type=str,
         default=JUDGE_DEFAULT_REPO,
-        help="Only process comments from this repo (owner/name). Default: %(default)s. Use empty string for all repos.",
+        help="Only process comments from this repo (owner/name). Default: all repos. Pass owner/name to filter.",
     )
     return parser.parse_args()
 

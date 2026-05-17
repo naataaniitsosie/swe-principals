@@ -259,7 +259,7 @@ ISI Reasoning: No documentation, facts, or logical arguments are provided.
 ```
 
 #### LLM Coding Scheme (System Prompt)
-See [CONFORMITY_SYSTEM_PROMPT.md](CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
+See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
 
 ### Phase 1 — Surface-Level Conformity Detection (No LLM)
 

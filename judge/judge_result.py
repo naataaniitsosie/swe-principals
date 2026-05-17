@@ -1,7 +1,7 @@
 """
 Shared judge output: CONFORMITY LLM JSON → structured result and DB row.
 
-Schema (see docs/papers/CONFORMITY_SYSTEM_PROMPT.md): FUN, NSI, INSI, and ISI are
+Schema (see papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): FUN, NSI, INSI, and ISI are
 independent dimensions; each has _reasoning (str) and _score (0–3).
 """
 
@@ -26,6 +26,9 @@ class JudgeResult:
     isi_reasoning: str
     isi_score: int
     raw_response: Optional[str] = None
+    parse_ok: bool = True
+    error_type: str = ""
+    error_message: str = ""
 
     def to_row(self, comment_id: str, model_name: str, created_at: Optional[str] = None):
         """Tuple for SQLite scores row (see judge/storage.py SCORES_SCHEMA)."""
@@ -41,6 +44,10 @@ class JudgeResult:
             self.isi_score,
             self.isi_reasoning or "",
             created_at,
+            1 if self.parse_ok else 0,
+            self.error_type or "",
+            self.error_message or "",
+            self.raw_response or "",
         )
 
 
@@ -100,18 +107,26 @@ def judge_result_from_parsed(data: dict[str, Any], raw: str) -> JudgeResult:
     )
 
 
-def empty_judge_result(raw: Optional[str] = None) -> JudgeResult:
-    """Fallback when JSON parse fails (all scores 0, empty reasoning)."""
+def empty_judge_result(
+    raw: Optional[str] = None,
+    *,
+    error_type: str = "json_parse_error",
+    error_message: str = "",
+) -> JudgeResult:
+    """Fallback when JSON parse fails (-1 scores, empty reasoning, raw output retained)."""
     return JudgeResult(
         fun_reasoning="",
-        fun_score=0,
+        fun_score=-1,
         nsi_reasoning="",
-        nsi_score=0,
+        nsi_score=-1,
         insi_reasoning="",
-        insi_score=0,
+        insi_score=-1,
         isi_reasoning="",
-        isi_score=0,
+        isi_score=-1,
         raw_response=raw,
+        parse_ok=False,
+        error_type=error_type,
+        error_message=error_message,
     )
 
 
@@ -124,4 +139,4 @@ def judge_result_from_raw_model_output(raw: str) -> JudgeResult:
         return judge_result_from_parsed(data, raw)
     except (json.JSONDecodeError, ValueError, TypeError) as e:
         logger.warning("Failed to parse judge JSON: %s. Raw: %s", e, raw[:200])
-        return empty_judge_result(raw)
+        return empty_judge_result(raw, error_message=str(e))

@@ -7,9 +7,7 @@ from pathlib import Path
 from project_config import db_path
 
 from judge.config import Backend, resolve_model_for_backend
-from judge.gpt_judge import GPTJudge
 from judge.storage import CleanedReader, ScoresWriter, get_scored_comment_ids
-from judge.ollama_judge import OllamaJudge
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +56,12 @@ def run(
 
     writer = ScoresWriter(path)
     if backend == "openai":
+        from judge.gpt_judge import GPTJudge
+
         judge = GPTJudge(model=model_tag)
     else:
+        from judge.ollama_judge import OllamaJudge
+
         judge = OllamaJudge(model_tag)
 
     num_scored = 0
