@@ -1,38 +1,29 @@
-\documentclass[sigconf, 10pt, review]{acmart} % or 'format=sigconf'
-\usepackage{microtype}
+\documentclass[10pt, twocolumn]{article}
+\usepackage[margin=0.75in]{geometry}
+\IfFileExists{microtype.sty}{\usepackage{microtype}}{}
 \usepackage{graphicx}
+\graphicspath{{./}{papers/publication1/}}
 \usepackage{booktabs} % For professional tables
 \usepackage{hyperref}
-\usepackage{listings}
+\usepackage{fancyvrb}
 \usepackage{xcolor}
-\usepackage{soul}
-\usepackage{todonotes}
+\IfFileExists{soul.sty}{\usepackage{soul}}{\newcommand{\hl}[1]{\textcolor{red}{##1}}}
+\IfFileExists{todonotes.sty}{\usepackage{todonotes}}{\newcommand{\todo}[1]{}}
 
 \newcommand{\needcite}[1]{\textcolor{red}{[CITATION NEEDED: #1]}}
 \newcommand{\question}[1]{\textcolor{blue}{[QUESTION: #1]}}
 
 % Document Metadata
 \title{Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vehicula pellentesque tellus. In vehicula blandit.}
-\author{Nancy Fulda}
-\email{nfulda@cs.byu.edu}
-\affiliation{%
-  \institution{Brigham Young University}
-  \city{Provo}
-  \state{Utah}
-  \country{USA}
+\author{%
+    Nancy Fulda\\
+    Brigham Young University\\
+    \href{mailto:nfulda@cs.byu.edu}{nfulda@cs.byu.edu}
+    \and
+    Naataanii Tsosie\\
+    Brigham Young University\\
+    \href{mailto:naataanii.tsosie@byu.edu}{naataanii.tsosie@byu.edu}
 }
-
-\author{Naataanii Tsosie}
-\email{naataanii.tsosie@byu.edu}
-\affiliation{%
-  \institution{Brigham Young University}
-  \city{Provo}
-  \state{Utah}
-  \country{USA}
-}
-
-\settopmatter{printacmref=false}
-\renewcommand\footnotetextcopyrightpermission[1]{} % Removes this specific copyright block
 
 \begin{document}
 
@@ -160,21 +151,21 @@ In human social structures, subjective preference often masquerades as objective
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{nsi.png} % Update filename if you have nsi.png
+    \includegraphics[width=1\linewidth]{nsi.png}
     \caption{Counts of NSI ordinal scores (0–3) by event type}
     \label{fig:nsi_counts}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{insi.png} % Update filename if you have insi.png
+    \includegraphics[width=1\linewidth]{insi.png}
     \caption{Counts of INSI ordinal scores (0–3) by event type}
     \label{fig:insi_counts}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{isi.png} % Update filename if you have isi.png
+    \includegraphics[width=1\linewidth]{isi.png}
     \caption{Counts of ISI ordinal scores (0–3) by event type}
     \label{fig:isi_counts}
 \end{figure}
@@ -225,7 +216,7 @@ In human social structures, subjective preference often masquerades as objective
 \onecolumn
 \section{Appendix}
 \subsubsection*{Conformity System Prompt}
-\begin{lstlisting}[breaklines=true, frame=single, basicstyle=\footnotesize\ttfamily, columns=flexible]
+\begin{Verbatim}[frame=single, fontsize=\footnotesize]
 **Annotator Instructions**
 
 **Objective:** You are a research assistant specializing in Social Psychology and Software Engineering. Your goal is to determine if a Pull Request comment is enforcing a functional technical requirement (FUN), an explicit social norm (NSI), an implicit social norm (INSI), or an expert best practice (ISI).
@@ -275,8 +266,10 @@ Scores are 0–3: 0 (None), 1 (Weak/Suggestion), 2 (Moderate/Expectation), 3 (St
 6. **Bare Code Suggestion (Zero-Text)**
    - *Input:* ```python\n- var x = 5\n+ current_count = 5\n```
    - *Output:* `{"fun_reasoning":"The snippet changes a variable name; it does not fix a functional bug.","fun_score": 0,"nsi_reasoning":"No text is provided to explicitly invoke group norms.","nsi_score": 0,"insi_reasoning":"Per Constraint 4 bare code suggestions without explanatory text are treated as simple helpfulness,not implicit social influence.","insi_score": 0,"isi_reasoning": "No external authority or documentation is cited.","isi_score": 0}`
-\end{lstlisting}
+\end{Verbatim}
 
-\bibliographystyle{ACM-Reference-Format}
-\bibliography{references} % This looks for a file named references.bib
+\IfFileExists{references.bib}{%
+    \bibliographystyle{plain}%
+    \bibliography{references}%
+}{}
 \end{document}
