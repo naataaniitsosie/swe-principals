@@ -46,14 +46,12 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam posuere libero 
 \end{abstract}
 
 \section{Introduction}
-Conformity is a multi-faceted social construct, primarily driven by normative social influence (the desire to be accepted) and informational social influence (the desire to be "correct" based on group data)\cite{deutsch1955study}. These influences are not neutral; they act as vectors for systemic issues like racism and human bias \needcite{}. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
+Conformity shapes how software communities evaluate contributions, blending technical judgments with social expectations. These influences are not neutral; they can act as vectors for systemic issues like racism and human bias \needcite{}. In Software Engineering, Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
 
-While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability, or "functional conformity", with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
+While Formal Methods provide objective measurements of functional correctness, the social layer of Software Engineering often conflates maintainability, or "functional conformity", with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
 
 \section{Background: Conformity in Software Engineering}
-Conformity is a multi-faceted social construct, primarily driven by \emph{normative social influence} (the desire to be accepted) and \emph{informational social influence} (the desire to be ``correct'' based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
-
-While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability---or ``functional conformity''---with social conformity. As we train Large Language Models (LLMs) to optimize for ``correctness'' based on existing repositories, we risk inadvertently codifying and amplifying these social biases. 
+Conformity is a multi-faceted social construct, primarily driven by \emph{normative social influence} (the desire to be accepted) and \emph{informational social influence} (the desire to be ``correct'' based on group data)\cite{deutsch1955study}.
 
 \subsection{Normative Social Influence (NSI)}
 In the context of SE, NSI represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of ``how things are done here.'' NSI serves as the ``gatekeeper'' of project culture. A key tenet is the lack of technical grounding for a requested change, even when a social or stylistic justification is explicitly provided.
@@ -120,7 +118,7 @@ Raw events were ingested and processed through a multi-stage pipeline designed t
 \section{LLM-as-Judge Meta Evaluation}
 LLM-as-judge methods offer a scalable mechanism for open-ended evaluation, but their reliability depends on model capability and careful control of known evaluator biases. Prior work shows that strong judge models can approximate human preferences while still exhibiting position bias, verbosity bias, and self-enhancement bias \cite{zheng2023judging}. Accordingly, before applying LLM-as-judge scoring to PR discourse, we treat judge selection, prompt design, and bias mitigation as part of the measurement protocol rather than as implementation details.
 
-In the context of this study, the prompt (see Appendix~\ref{appendix:prompt}) serves as the standardized evaluation rubric against which model pull requests are judged.
+In the context of this study, the prompt (see Appendix~\ref{appendix:prompt}) serves as the standardized evaluation rubric against which model outputs are judged.
 
 
 \section{Evaluation}
