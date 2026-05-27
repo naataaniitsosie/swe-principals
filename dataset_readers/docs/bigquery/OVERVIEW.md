@@ -68,3 +68,17 @@ WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20251231'
 ```
 
 See [SAMPLE_QUERIES.md](SAMPLE_QUERIES.md) for console-ready queries you can paste directly into BigQuery.
+
+## Console vs Code
+
+| Task | Use |
+|---|---|
+| Explore schema, inspect a few rows | **Console** |
+| Dry-run to check bytes scanned before committing | **Console** (click "Dry run") |
+| Spot-check a single day or repo | **Console** |
+| Download < 16,000 rows as CSV | **Console** (More → Download as CSV) |
+| Full 2023–2025 pull to local file | **Python client** (`scripts/bq_pull.py`) |
+| One-off large download without writing Python | **`bq` CLI** |
+| Automated / scheduled extraction | **Python client** via the `BigQueryReader` class |
+
+**Rule of thumb:** use the console until you need more rows than it can export or you need to automate the run. Once a query is validated in the console, copy it into the Python client or `bq` CLI for the real pull.

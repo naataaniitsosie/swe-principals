@@ -198,6 +198,115 @@ ORDER BY year, type;
 
 ---
 
+## One-and-Done: Full 2023–2025 Local Download
+
+The BigQuery console caps direct CSV/JSON downloads at ~16,000 rows, so a full multi-year pull must go through the **Python client** (streams row-by-row, no Cloud Storage needed) or the **`bq` CLI** (buffers in memory). Pick one:
+
+---
+
+### Option A — Python client (recommended)
+
+Streams results directly to a local JSONL file. Integrates with the reader pipeline and doesn't buffer the full result set in memory.
+
+```python
+# scripts/bq_pull.py
+from google.cloud import bigquery
+import json, os
+from pathlib import Path
+
+PROJECT = os.environ["GCP_PROJECT"]  # set in .env
+OUTPUT  = Path("data/raw/github_events_2023_2025.jsonl")
+
+SQL = """
+SELECT
+  id,
+  type,
+  actor.login                                  AS actor_login,
+  repo.name                                    AS repo_name,
+  JSON_VALUE(payload, '$.action')              AS action,
+  JSON_VALUE(payload, '$.number')              AS pr_number,
+  JSON_VALUE(payload, '$.pull_request.title')  AS pr_title,
+  JSON_VALUE(payload, '$.review.body')         AS review_body,
+  JSON_VALUE(payload, '$.review.state')        AS review_state,
+  JSON_VALUE(payload, '$.comment.body')        AS comment_body,
+  payload,
+  created_at
+FROM `githubarchive.month.*`
+WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202512'
+  AND type IN (
+    'PullRequestEvent',
+    'PullRequestReviewEvent',
+    'PullRequestReviewCommentEvent',
+    'IssueCommentEvent'
+  )
+  AND repo.name IN (
+    'expressjs/express',
+    'nestjs/nest',
+    'koajs/koa',
+    'fastify/fastify',
+    'hapijs/hapi',
+    'spring-projects/spring-boot',
+    'tiangolo/fastapi',
+    'django/django',
+    'pallets/flask',
+    'gin-gonic/gin'
+  )
+ORDER BY created_at
+"""
+
+client = bigquery.Client(project=PROJECT)
+OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+
+with OUTPUT.open("w") as f:
+    for row in client.query(SQL).result():
+        f.write(json.dumps(dict(row)) + "\n")
+
+print(f"Saved to {OUTPUT}")
+```
+
+```bash
+caffeinate python scripts/bq_pull.py
+```
+
+---
+
+### Option B — `bq` CLI (no Python)
+
+```bash
+bq query \
+  --use_legacy_sql=false \
+  --format=newline_delimited_json \
+  --max_rows=10000000 \
+  --project_id="$(grep GCP_PROJECT .env | cut -d= -f2)" \
+'SELECT
+   id, type,
+   actor.login AS actor_login, repo.name AS repo_name,
+   JSON_VALUE(payload, "$.action")              AS action,
+   JSON_VALUE(payload, "$.number")              AS pr_number,
+   JSON_VALUE(payload, "$.pull_request.title")  AS pr_title,
+   JSON_VALUE(payload, "$.review.body")         AS review_body,
+   JSON_VALUE(payload, "$.review.state")        AS review_state,
+   JSON_VALUE(payload, "$.comment.body")        AS comment_body,
+   payload, created_at
+ FROM `githubarchive.month.*`
+ WHERE _TABLE_SUFFIX BETWEEN "202301" AND "202512"
+   AND type IN (
+     "PullRequestEvent","PullRequestReviewEvent",
+     "PullRequestReviewCommentEvent","IssueCommentEvent"
+   )
+   AND repo.name IN (
+     "expressjs/express","nestjs/nest","koajs/koa","fastify/fastify",
+     "hapijs/hapi","spring-projects/spring-boot","tiangolo/fastapi",
+     "django/django","pallets/flask","gin-gonic/gin"
+   )
+ ORDER BY created_at' \
+> data/raw/github_events_2023_2025.jsonl
+```
+
+> **Note:** `bq query` buffers the full result set before writing. For very large result sets, prefer Option A.
+
+---
+
 ## Cross-Range Queries (2023–2025)
 
 For the primary research window, use `githubarchive.month.*`. Run a dry run first — this spans 36 monthly tables.
