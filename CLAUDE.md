@@ -14,8 +14,9 @@ This repository studies **conformity in software engineering** by analyzing GitH
 
 1. `dataset.py` — Extract PR events from GHArchive into SQLite (`data/raw/events.db`)
 2. `preprocess.py` — Clean and normalize events into the `cleaned` table
-3. `judge.py` — Score cleaned comments with an LLM (Ollama or OpenAI)
-4. `browse_comments.py` / `browse_scores.py` — Inspect data and scores
+3. `sample.py` — Draw a deterministic stratified sample into the `samples` table (see `sampling/README.md`)
+4. `judge.py` — Score sampled comments with an LLM (Ollama or OpenAI); reads from `samples`, not `cleaned`
+5. `browse_comments.py` / `browse_scores.py` — Inspect data and scores
 
 ## Two Scoring Tracks
 

@@ -10,6 +10,7 @@ Single SQLite database: **`data/raw/events.db`** by default (see `project_config
 |-----------|------------------|---------|
 | **events**  | `dataset.py`     | Raw GitHub events from GHArchive. |
 | **cleaned** | `preprocess.py`  | Preprocessed comment text only (slim records). |
+| **samples** | `sample.py`      | Stratified sample: selected `id` values (FK → cleaned) plus repo, event_type, stratum_key. Judge operates over this table. See [`sampling/README.md`](../sampling/README.md). |
 | **scores**  | `judge.py`       | LLM judge output: FUN/NSI/INSI/ISI scores and reasoning per comment and model ([CONFORMITY_SYSTEM_PROMPT.md](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md)). |
 
 ---

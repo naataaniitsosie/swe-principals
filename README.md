@@ -1,3 +1,69 @@
+## Pipeline Overview
+
+```
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║                     GHArchive  (network)                        ║
+  ║          hourly .gz archives · public GitHub event stream       ║
+  ╚══════════════════════════════╦═════════════════════════════════╝
+                                 ║
+                        ┌────────▼────────┐
+                        │   dataset.py    │  ← filter by repo + event type
+                        └────────┬────────┘
+                                 │ writes
+                         ┌───────▼───────┐
+                         │    events     │  raw JSON blobs
+                         └───────┬───────┘
+                                 │
+                        ┌────────▼────────┐
+                        │  preprocess.py  │  ← dedupe · drop bots · clean text
+                        └────────┬────────┘
+                                 │ writes
+                         ┌───────▼───────┐◀────────────────────────────────────┐
+                         │    cleaned    │  id · cleaned_text · tokens          │
+                         └───────┬───────┘                                      │
+                                 │                              browse_comments.py
+                        ┌────────▼────────┐                    Markdown per repo
+                        │   sample.py     │  ← stratified sample               │
+                        │                 │    repo × event_type strata         │
+                        │                 │    floor 25 / cap 50 / per-stratum  │
+                        │                 │    seeded · deterministic           │
+                        └────────┬────────┘                                     │
+                                 │ writes                                        │
+                         ┌───────▼───────┐                                      │
+                         │    samples    │  id · repo · event_type              │
+                         └───────┬───────┘                           data_explorer.ipynb
+                                 │                                   events + cleaned
+                        ┌────────▼────────┐                          pre-score EDA
+                        │    judge.py     │  ← LLM scoring (Ollama / OpenAI)
+                        └────────┬────────┘
+                                 │ writes
+                         ┌───────▼───────┐◀────────────────────────────────────┐
+                         │    scores     │  FUN · NSI · INSI · ISI  (0–3)      │
+                         └───────────────┘                                      │
+                                                               browse_scores.py │
+                                                               stdout inspection │
+                                                                                 │
+                                                           score_analysis.ipynb │
+                                                           score stats · charts  │
+                                                                                 │
+                                                           ──────────────────────┘
+```
+
+**Two scoring tracks** (derived from `event_type` at query time):
+
+```
+  Track 1 — Reviewer pressure              Track 2 — Contributor signaling
+  ──────────────────────────────           ───────────────────────────────────
+  PullRequestReviewEvent                   PullRequestEvent
+  PullRequestReviewCommentEvent
+  IssueCommentEvent
+
+  Prompt: CONFORMITY_SYSTEM_PROMPT         Prompt: CONTRIBUTOR_CONFORMITY_SYSTEM_PROMPT
+  Scores: FUN / NSI / INSI / ISI           Scores: A-NSI / A-ISI
+```
+
+---
+
 ## Installation
 
 ### Prerequisites
@@ -87,17 +153,25 @@ The DB is a single SQLite file (see **`dataset_readers/gharchive/storage.py`** a
 
 ## Runnable scripts (pipeline)
 
-Run in order: **1. Extract** → **2. Preprocess**. Optional: **browse_comments**, **judge**, **browse_scores** (after judge).
+Run in order: **1. Extract** → **2. Preprocess** → **3. Sample** → **4. Judge**. Optional inspection tools at any point.
 
 | Step | Script | Input | Output |
 |------|--------|--------|--------|
-| 1. Extract | `python dataset.py` | GHArchive (network) | `data/raw/events.db` |
-| 2. Preprocess | `python preprocess.py` | config `DATA_DIR` | same DB (`cleaned` table) |
+| 1. Extract | `python dataset.py` | GHArchive (network) | `events` table |
+| 2. Preprocess | `python preprocess.py` | `events` table | `cleaned` table |
+| 3. Sample | `python sample.py` | `cleaned` table | `samples` table |
+| 4. Judge | `python judge.py` | `samples` table | `scores` table |
+| — | `python browse_comments.py` | `cleaned` table | Markdown per repo |
+| — | `notebooks/data_explorer.ipynb` | `events` + `cleaned` | pre-score EDA |
+| — | `python browse_scores.py` | `scores` + `cleaned` | stdout inspection |
+| — | `notebooks/score_analysis.ipynb` | `scores` | score stats + charts |
 
 **Chaining:**
 ```bash
 python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
 python preprocess.py
+python sample.py
+python judge.py
 ```
 
 ---
@@ -171,9 +245,19 @@ See [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.
 
 ---
 
-### 3. Judge (LLM scoring) (`judge.py`)
+### 3. Sample (`sample.py`)
 
-Scores cleaned PR comments using the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **cleaned**, writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
+Draws a deterministic stratified sample from **cleaned** and writes selected IDs to **samples**. Strata are `repo × event_type`; each stratum gets a minimum of 25 and a maximum of 50 comments, with per-stratum seeding for reproducibility. Re-running drops and recreates **samples** (idempotent). See [`sampling/README.md`](sampling/README.md) for full design rationale.
+
+```bash
+python sample.py
+```
+
+---
+
+### 4. Judge (LLM scoring) (`judge.py`)
+
+Scores sampled PR comments using the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **samples** (joined with **cleaned** and **events**), writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
 
 ```bash
 python judge.py
