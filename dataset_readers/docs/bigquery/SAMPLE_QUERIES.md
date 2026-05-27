@@ -8,7 +8,7 @@
 
 The BigQuery console caps direct downloads at ~16,000 rows, so the full pull goes through the **Python client** (streams row-by-row) or the **`bq` CLI** (buffers in memory). Pick one:
 
-> **Why `month.*` and not `year.*`:** `githubarchive.year` tables only exist through 2015 — there are no year-level tables for 2016 onward. Source: [gharchive.org BigQuery README](https://github.com/igrigorik/gharchive.org/blob/master/bigquery/README.md). For 2023–2025, `month.*` with a full-year suffix range is the equivalent.
+> **Why `month.*` and not `year.*`:** `githubarchive.year` tables only exist through 2015 — there are no year-level tables for 2016 onward. Source: [gharchive.org/#bigquery](https://www.gharchive.org/#bigquery). For 2023–2025, `month.*` with a full-year suffix range is the equivalent.
 
 ### Option A — Python client (recommended)
 
