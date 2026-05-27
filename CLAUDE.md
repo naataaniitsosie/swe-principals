@@ -33,3 +33,7 @@ Single SQLite file: `data/raw/events.db`. Tables: `events`, `cleaned`, `scores`.
 - Python 3.10+ via conda environment `swe-principals`
 - Secrets in `.env` at repo root (not committed)
 - Long Ollama runs: wrap with `caffeinate` to prevent macOS sleep
+
+## Navigation Rule
+
+Before exploring or modifying any directory, check whether it contains a `README.md`. If one exists, read it first — it is the authoritative description of that directory's purpose, structure, and conventions.
