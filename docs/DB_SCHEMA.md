@@ -10,7 +10,7 @@ Single SQLite database: **`data/raw/events.db`** by default (see `project_config
 |-----------|------------------|---------|
 | **events**  | `dataset.py`     | Raw GitHub events from GHArchive. |
 | **cleaned** | `preprocess.py`  | Preprocessed comment text only (slim records). |
-| **scores**  | `judge.py`       | LLM judge output: FUN/NSI/INSI/ISI scores and reasoning per comment and model ([CONFORMITY_SYSTEM_PROMPT.md](papers/CONFORMITY_SYSTEM_PROMPT.md)). |
+| **scores**  | `judge.py`       | LLM judge output: FUN/NSI/INSI/ISI scores and reasoning per comment and model ([CONFORMITY_SYSTEM_PROMPT.md](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md)). |
 
 ---
 
@@ -76,31 +76,35 @@ Normalized preprocessed data. One row per event that passed preprocessing. **Onl
 
 ## Table: `scores`
 
-LLM judge output. One row per **(comment_id, model_name)**. Schema matches the JSON in [`CONFORMITY_SYSTEM_PROMPT.md`](papers/CONFORMITY_SYSTEM_PROMPT.md): four independent dimensions (FUN, NSI, INSI, ISI), each with reasoning text and a 0–3 score.
+LLM judge output. One row per **(comment_id, model_name)**. Schema matches the JSON in [`CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): four independent dimensions (FUN, NSI, INSI, ISI), each with reasoning text and a 0–3 score. If the model response cannot be parsed as JSON, all four scores are stored as `-1` and parse metadata is retained for retry/inspection.
 
 | Column           | Type    | Description |
 |------------------|---------|-------------|
 | `comment_id`     | TEXT    | Same as `id` in `cleaned`. Part of primary key. |
 | `model_name`     | TEXT    | Model id (Ollama tag or OpenAI model name). Part of primary key. |
-| `fun_score`      | INTEGER | FUN (functional) score 0–3. |
+| `fun_score`      | INTEGER | FUN (functional) score 0–3, or `-1` if parsing failed. |
 | `fun_reasoning`  | TEXT    | FUN reasoning. |
-| `nsi_score`      | INTEGER | NSI (explicit normative social) score 0–3. |
+| `nsi_score`      | INTEGER | NSI (explicit normative social) score 0–3, or `-1` if parsing failed. |
 | `nsi_reasoning`  | TEXT    | NSI reasoning. |
-| `insi_score`     | INTEGER | INSI (implicit normative social) score 0–3. |
+| `insi_score`     | INTEGER | INSI (implicit normative social) score 0–3, or `-1` if parsing failed. |
 | `insi_reasoning` | TEXT    | INSI reasoning. |
-| `isi_score`      | INTEGER | ISI (informational / expert) score 0–3. |
+| `isi_score`      | INTEGER | ISI (informational / expert) score 0–3, or `-1` if parsing failed. |
 | `isi_reasoning`  | TEXT    | ISI reasoning. |
 | `created_at`     | TEXT    | Optional; copied from cleaned record. |
+| `parse_ok`       | INTEGER | `1` when model output parsed successfully; `0` for malformed/unparseable output. |
+| `error_type`     | TEXT    | Error category for failed parses, e.g. `json_parse_error`. Empty when `parse_ok=1`. |
+| `error_message`  | TEXT    | Parser exception message for failed parses. Empty when `parse_ok=1`. |
+| `raw_response`   | TEXT    | Raw model output. Stored mainly so `parse_ok=0` rows can be inspected and retried. |
 
 **Primary key:** `(comment_id, model_name)`.
 
-If your DB still has an older `scores` table (e.g. NSI/ISI only), drop it once so the judge can recreate the table with the full schema: `DROP TABLE IF EXISTS scores;` (you will lose prior judge rows).
+The judge creates missing parse metadata columns automatically for older `scores` tables. If your DB still has a much older incompatible `scores` table (e.g. NSI/ISI only), drop it once so the judge can recreate the table with the full schema: `DROP TABLE IF EXISTS scores;` (you will lose prior judge rows).
 
 ---
 
 ## Example queries
 
-Default DB path: `data/raw/events.db` (adjust if you use another file). Replace `model_name` values with your stored judge id (Ollama tag, e.g. `llama3.1:8b-instruct-q8_0`, or OpenAI model name, e.g. `gpt-5.4-mini`).
+Default DB path: `data/raw/events.db` (adjust if you use another file). Replace `model_name` values with your stored judge id (Ollama tag, e.g. `gemma4:e4b`, or OpenAI model name, e.g. `gpt-5.4-mini`).
 
 ```sql
 -- Count by table
@@ -113,7 +117,7 @@ SELECT json_extract(e.event_data, '$.repo.name') AS repo, COUNT(*)
 FROM cleaned c INNER JOIN events e ON e.id = c.id
 GROUP BY 1 ORDER BY 1;
 
--- Scores: row counts and mean scores per model (FUN / NSI / INSI / ISI are 0–3)
+-- Scores: row counts and mean scores per model (valid rows only; scores are 0–3)
 SELECT
   model_name,
   COUNT(*) AS n,
@@ -122,8 +126,28 @@ SELECT
   ROUND(AVG(insi_score), 3) AS avg_insi,
   ROUND(AVG(isi_score), 3)  AS avg_isi
 FROM scores
+WHERE parse_ok = 1
 GROUP BY model_name
 ORDER BY model_name;
+
+-- Parse failures by model (scores are stored as -1 when parsing failed)
+SELECT model_name, COUNT(*) AS n_parse_failures
+FROM scores
+WHERE parse_ok = 0
+GROUP BY model_name
+ORDER BY n_parse_failures DESC;
+
+-- Inspect failed model outputs for retry/debugging
+SELECT
+  comment_id,
+  model_name,
+  error_type,
+  error_message,
+  substr(raw_response, 1, 500) AS raw_response_preview
+FROM scores
+WHERE parse_ok = 0
+ORDER BY comment_id
+LIMIT 20;
 
 -- Inspect raw judge rows (all columns from CONFORMITY-shaped output)
 SELECT * FROM scores LIMIT 10;
@@ -140,7 +164,8 @@ SELECT
   substr(s.nsi_reasoning, 1, 80)  AS nsi_reasoning_preview
 FROM cleaned c
 JOIN scores s ON s.comment_id = c.id
-WHERE s.model_name = 'llama3.1:8b-instruct-q8_0'  -- your model_name here
+WHERE s.model_name = 'gemma4:e4b'  -- your model_name here
+  AND s.parse_ok = 1
 LIMIT 10;
 
 -- Example: comments with strong implicit norm signal (INSI), for one model
@@ -150,6 +175,7 @@ SELECT
   substr(s.insi_reasoning, 1, 200) AS insi_reasoning_preview
 FROM scores s
 WHERE s.model_name = 'gpt-5.4-mini'  -- your model_name here
+  AND s.parse_ok = 1
   AND s.insi_score >= 2
 ORDER BY s.insi_score DESC, s.comment_id
 LIMIT 20;

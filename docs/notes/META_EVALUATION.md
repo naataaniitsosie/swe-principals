@@ -8,7 +8,7 @@
 
 ## Overview
 
-1. Run two judge models on all 40K cleaned comments
+1. Run two judge models on 2K cleaned `django/django` comments
 2. Create stratified preference pairs for each dimension
 3. Collect human preference rankings (which comment exhibits more of the dimension?)
 4. Measure model agreement with human preference
@@ -24,8 +24,8 @@ See [`docs/notes/MODEL_LIST.md`](MODEL_LIST.md) for full specifications. For thi
 
 | Role | Model | Access |
 |------|-------|--------|
-| **Model 1** | Phi-4-Reasoning-Vision-15B | Ollama (15B, CoT specialist) |
-| **Model 2** | StarCoder 2 15B Instruct | Ollama (15B, code-focused) |
+| **Model 1** | Gemma 4 E4B | Ollama (`gemma4-e4b` -> `gemma4:e4b`; 4B effective, faster local social/general judge) |
+| **Model 2** | StarCoder 2 3B | Ollama (`starcoder2-3b` -> `starcoder2:3b`; closest StarCoder2 size class to Gemma 4 E4B) |
 
 Both models score all four dimensions (FUN, NSI, INSI, ISI).
 
@@ -35,8 +35,8 @@ Both models score all four dimensions (FUN, NSI, INSI, ISI).
 
 ### Scope
 - **Total pairs:** ~160–200 (40–50 pairs per dimension)
-- **Stratification:** Balanced across repos and event types
-- **Source:** 40K cleaned PR comments
+- **Stratification:** Balanced across event types within `django/django`
+- **Source:** 2K cleaned `django/django` PR comments
 
 ### Pair Criteria
 
@@ -108,24 +108,24 @@ Save to: `data/meta_eval/human_preferences.jsonl`
 
 ## Model Scoring
 
-### Run Models on All Comments
+### Run Models on Django Comments
 
 ```bash
-# Score all 40K with both models
-python judge.py --backend ollama --model phi4 --limit 40000
-python judge.py --backend ollama --model starcoder2:15b --limit 40000
+# Score 2K django/django comments with both models
+python judge.py --backend ollama --model gemma4-e4b --repo django/django --limit 2000
+python judge.py --backend ollama --model starcoder2-3b --repo django/django --limit 2000
 ```
 
-Output: Both models score all comments on all four dimensions. Scores stored in SQLite `scores` table.
+Output: Both models score 2K `django/django` comments on all four dimensions. Scores stored in SQLite `scores` table.
 
 #### macOS: Preventing Sleep During Long Runs
 
-Scoring 40K comments takes hours. On macOS, the system will sleep and pause Ollama unless prevented. Use `caffeinate` to keep the system awake:
+Scoring 2K `django/django` comments takes hours. On macOS, the system will sleep and pause Ollama unless prevented. Use `caffeinate` to keep the system awake:
 
 ```bash
 # Prevent idle and system sleep during model scoring
-caffeinate -i -s python judge.py --backend ollama --model phi4 --limit 40000
-caffeinate -i -s python judge.py --backend ollama --model starcoder2:15b --limit 40000
+caffeinate -i -s python judge.py --backend ollama --model gemma4-e4b --repo django/django --limit 2000
+caffeinate -i -s python judge.py --backend ollama --model starcoder2-3b --repo django/django --limit 2000
 ```
 
 **`caffeinate` flags:**
@@ -148,11 +148,11 @@ For each pair and each model:
 ```
 Pair ID: nsi_001
 
-Model: phi4
+Model: gemma4:e4b
   Comment A: fun=1, nsi=1, insi=1, isi=1
   Comment B: fun=1, nsi=3, insi=1, isi=1
 
-Model: starcoder2:15b
+Model: starcoder2:3b
   Comment A: fun=1, nsi=1, insi=1, isi=1
   Comment B: fun=1, nsi=2, insi=1, isi=1
 ```
@@ -187,12 +187,12 @@ agreement_rate = (# pairs where model agrees with human) / (total pairs)
 **Example output:**
 
 ```
-Dimension | Phi4 (%) | StarCoder2 (%) 
------------|----------|----------------
-FUN        | 92%      | 88%
-NSI        | 78%      | 62%
-INSI       | 81%      | 71%
-ISI        | 89%      | 85%
+Dimension | Gemma4 E4B (%) | StarCoder2 3B (%)
+----------|----------------|---------------
+FUN       | 92%            | 88%
+NSI       | 78%            | 62%
+INSI      | 81%            | 71%
+ISI       | 89%            | 85%
 ```
 
 ### Tie-Breaking
@@ -221,12 +221,12 @@ Minimum thresholds for each model × dimension combination:
 
 ```bash
 # 1. Pull models
-ollama pull phi4
-ollama pull starcoder2:15b
+ollama pull gemma4:e4b
+ollama pull starcoder2:3b
 
-# 2. Score all comments (use caffeinate on macOS to prevent sleep)
-caffeinate -i -s python judge.py --backend ollama --model phi4 --limit 40000
-caffeinate -i -s python judge.py --backend ollama --model starcoder2:15b --limit 40000
+# 2. Score 2K django/django comments (use caffeinate on macOS to prevent sleep)
+caffeinate -i -s python judge.py --backend ollama --model gemma4-e4b --repo django/django --limit 2000
+caffeinate -i -s python judge.py --backend ollama --model starcoder2-3b --repo django/django --limit 2000
 
 # 3. Create preference pairs
 # Manual curation: read comments, select pairs
@@ -250,16 +250,16 @@ python scripts/eval_preference_agreement.py \
   ```json
   {
     "summary": {
-      "phi4": {"fun": 0.92, "nsi": 0.78, "insi": 0.81, "isi": 0.89},
-      "starcoder2:15b": {"fun": 0.88, "nsi": 0.62, "insi": 0.71, "isi": 0.85}
+      "gemma4:e4b": {"fun": 0.92, "nsi": 0.78, "insi": 0.81, "isi": 0.89},
+      "starcoder2:3b": {"fun": 0.88, "nsi": 0.62, "insi": 0.71, "isi": 0.85}
     },
     "pairs": [
       {
         "pair_id": "nsi_001",
         "dimension": "nsi",
         "human_pref": "B",
-        "phi4_agrees": true,
-        "starcoder2_agrees": true
+        "gemma4_agrees": true,
+        "starcoder2_3b_agrees": true
       },
       ...
     ]
@@ -285,6 +285,6 @@ This document specifies only the measurement methodology.
 
 - **Judge implementation:** [`judge/README.md`](../judge/README.md)
 - **Model specifications:** [`docs/notes/MODEL_LIST.md`](MODEL_LIST.md)
-- **Rubric:** [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](../papers/CONFORMITY_SYSTEM_PROMPT.md)
-- **Dataset:** CONFORMITY.md (40K cleaned comments, `data/raw/events.db`)
+- **Rubric:** [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md)
+- **Dataset:** CONFORMITY.md (2K-comment `django/django` subset from the 40K cleaned comments in `data/raw/events.db`)
 - **Interpretation & theory:** CONFORMITY.md

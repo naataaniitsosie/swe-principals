@@ -1,38 +1,29 @@
-\documentclass[sigconf, 10pt, review]{acmart} % or 'format=sigconf'
-\usepackage{microtype}
+\documentclass[10pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\IfFileExists{microtype.sty}{\usepackage{microtype}}{}
 \usepackage{graphicx}
+\graphicspath{{./}{papers/publication1/}}
 \usepackage{booktabs} % For professional tables
 \usepackage{hyperref}
-\usepackage{listings}
+\usepackage{fancyvrb}
 \usepackage{xcolor}
-\usepackage{soul}
-\usepackage{todonotes}
+\IfFileExists{soul.sty}{\usepackage{soul}}{\newcommand{\hl}[1]{\textcolor{red}{##1}}}
+\IfFileExists{todonotes.sty}{\usepackage{todonotes}}{\newcommand{\todo}[1]{}}
 
 \newcommand{\needcite}[1]{\textcolor{red}{[CITATION NEEDED: #1]}}
 \newcommand{\question}[1]{\textcolor{blue}{[QUESTION: #1]}}
 
 % Document Metadata
 \title{Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vehicula pellentesque tellus. In vehicula blandit.}
-\author{Nancy Fulda}
-\email{nfulda@cs.byu.edu}
-\affiliation{%
-  \institution{Brigham Young University}
-  \city{Provo}
-  \state{Utah}
-  \country{USA}
+\author{%
+    Nancy Fulda\\
+    Brigham Young University\\
+    \href{mailto:nfulda@cs.byu.edu}{nfulda@cs.byu.edu}
+    \and
+    Naataanii Tsosie\\
+    Brigham Young University\\
+    \href{mailto:naataanii.tsosie@byu.edu}{naataanii.tsosie@byu.edu}
 }
-
-\author{Naataanii Tsosie}
-\email{naataanii.tsosie@byu.edu}
-\affiliation{%
-  \institution{Brigham Young University}
-  \city{Provo}
-  \state{Utah}
-  \country{USA}
-}
-
-\settopmatter{printacmref=false}
-\renewcommand\footnotetextcopyrightpermission[1]{} % Removes this specific copyright block
 
 \begin{document}
 
@@ -55,14 +46,12 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam posuere libero 
 \end{abstract}
 
 \section{Introduction}
-Conformity is a multi-faceted social construct, primarily driven by normative social influence (the desire to be accepted) and informational social influence (the desire to be "correct" based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias \needcite{}. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
+Conformity shapes how software communities evaluate contributions, blending technical judgments with social expectations. These influences are not neutral; they can act as vectors for systemic issues like racism and human bias \needcite{}. In Software Engineering, Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
 
-While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability, or "functional conformity", with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
+While Formal Methods provide objective measurements of functional correctness, the social layer of Software Engineering often conflates maintainability, or "functional conformity", with social conformity. As we train Large Language Models (LLMs) to optimize for "correctness" based on existing repositories, we risk inadvertently codifying and amplifying these social biases. This research aims to decouple social signals from software signals to quantify how enforced conformity impacts the evolution of code and the inclusivity of the developer community.
 
 \section{Background: Conformity in Software Engineering}
-Conformity is a multi-faceted social construct, primarily driven by \emph{normative social influence} (the desire to be accepted) and \emph{informational social influence} (the desire to be ``correct'' based on group data). These influences are not neutral; they act as vectors for systemic issues like racism and human bias. In Software Engineering (SE), Pull Requests (PRs) serve as a unique intersection of human creativity and rigid technical constraints, including type systems, parsers, and formal semantics.
-
-While Formal Methods (FM) provide objective measurements of functional correctness, the social layer of SE often conflates maintainability---or ``functional conformity''---with social conformity. As we train Large Language Models (LLMs) to optimize for ``correctness'' based on existing repositories, we risk inadvertently codifying and amplifying these social biases. 
+Conformity is a multi-faceted social construct, primarily driven by \emph{normative social influence} (the desire to be accepted) and \emph{informational social influence} (the desire to be ``correct'' based on group data)\cite{deutsch1955study}.
 
 \subsection{Normative Social Influence (NSI)}
 In the context of SE, NSI represents the psychological pressure to conform even when technical or functional justifications are absent, driven simply by the mantra of ``how things are done here.'' NSI serves as the ``gatekeeper'' of project culture. A key tenet is the lack of technical grounding for a requested change, even when a social or stylistic justification is explicitly provided.
@@ -78,18 +67,19 @@ In the context of SE, NSI represents the psychological pressure to conform even 
 Implicit NSI enforces conformity through unsubstantiated dissent. In contrast to explicit NSI, where a social norm is clearly stated, INSI creates gatekeeping via ambiguity. The reviewer forces the contributor to guess an unwritten norm and alter functionally correct code simply to appease the reviewer's request.
 
 \begin{table}[ht]
+\centering
 \caption{Core Distinction: Explicit NSI vs. Implicit NSI}
 \label{tab:nsi_distinction}
-\begin{tabular}{@{}lp{0.35\textwidth}@{}}
+\begin{tabular}{@{}p{0.22\textwidth}p{0.68\textwidth}@{}}
 \toprule
 \textbf{Mode} & \textbf{Mechanism of Interaction} \\ \midrule
 \textbf{Explicit NSI} & The reviewer explicitly states the expected behavior (e.g., ``Rewrite this using if/else; that is our style.''). \\
-\textbf{Implicit NSI} & The rule is unarticulated; the feedback contains friction but omits the convention (e.g., ``Are we really doing it this way?'' or ``This feels off...""). \\ \bottomrule
+\textbf{Implicit NSI} & The rule is unarticulated; the feedback contains friction but omits the convention (e.g., ``Are we really doing it this way?'' or ``This feels off...''). \\ \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Informational Social Influence (ISI)}
-While NSI/INSI are driven by the social need for belonging, Informational Social Influence (ISI) is driven by the fundamental desire for accuracy. \needcite{Source on ISI} In the high-stakes environment of SE—where technical ambiguity is common and the cost of error is high—developers frequently look to the group as a primary source of 'truth.' ISI occurs when a contributor adopts the norms of a repository based on the belief that the group possesses superior expertise or that an established pattern represents an objective 'best practice.' By anchoring themselves to the collective wisdom of the group, the individual gains a sense of acceptance, feeling that their implementation is accurate, validated, and technically correct.
+While NSI/INSI are driven by the social need for belonging, Informational Social Influence (ISI) is driven by the fundamental desire for accuracy\cite{deutsch1955study}. In the high-stakes environment of SE—where technical ambiguity is common and the cost of error is high—developers frequently look to the group as a primary source of 'truth.' ISI occurs when a contributor adopts the norms of a repository based on the belief that the group possesses superior expertise or that an established pattern represents an objective 'best practice.' By anchoring themselves to the collective wisdom of the group, the individual gains a sense of acceptance, feeling that their implementation is accurate, validated, and technically correct.
 
 For instance, a reviewer might comment, "Please update this routing logic to use the new v3 middleware, as outlined in the core migration docs." The contributor complies not simply to fit in, but because they trust documentation represents the objectively correct state of the system.
 
@@ -124,6 +114,12 @@ Raw events were ingested and processed through a multi-stage pipeline designed t
 \paragraph{Contextual Windowing.} To facilitate accurate labeling, comments were not treated as isolated strings. Each record was enriched with its parent context, including the original PR description and, where applicable, the specific line of code being critiqued. This context is vital for the LLM-as-judge to distinguish between a "hard" functional requirement (FUN) and an "unwritten" project style (INSI).
 
 \paragraph{Formatting and Tokenization.} Finally, all text was normalized to UTF-8, and markdown artifacts (e.g., nested blockquotes from previous emails) were flattened to prevent the judge model from hallucinating scores based on the formatting of a quoted reply rather than the new contribution.
+
+\section{LLM-as-Judge Meta Evaluation}
+LLM-as-judge methods offer a scalable mechanism for open-ended evaluation, but their reliability depends on model capability and careful control of known evaluator biases. Prior work shows that strong judge models can approximate human preferences while still exhibiting position bias, verbosity bias, and self-enhancement bias \cite{zheng2023judging}. Accordingly, before applying LLM-as-judge scoring to PR discourse, we treat judge selection, prompt design, and bias mitigation as part of the measurement protocol rather than as implementation details.
+
+In the context of this study, the prompt (see Appendix~\ref{appendix:prompt}) serves as the standardized evaluation rubric against which model outputs are judged.
+
 
 \section{Evaluation}
 \subsection{LLM-as-judge}
@@ -160,26 +156,26 @@ In human social structures, subjective preference often masquerades as objective
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{nsi.png} % Update filename if you have nsi.png
+    \includegraphics[width=1\linewidth]{nsi.png}
     \caption{Counts of NSI ordinal scores (0–3) by event type}
     \label{fig:nsi_counts}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{insi.png} % Update filename if you have insi.png
+    \includegraphics[width=1\linewidth]{insi.png}
     \caption{Counts of INSI ordinal scores (0–3) by event type}
     \label{fig:insi_counts}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=1\linewidth]{isi.png} % Update filename if you have isi.png
+    \includegraphics[width=1\linewidth]{isi.png}
     \caption{Counts of ISI ordinal scores (0–3) by event type}
     \label{fig:isi_counts}
 \end{figure}
 
-\begin{table*}[htbp]
+\begin{table}[htbp]
   \centering
   \footnotesize
   \setlength{\tabcolsep}{8pt}
@@ -218,14 +214,13 @@ In human social structures, subjective preference often masquerades as objective
     1.146 & 1 & 2 \\
     \bottomrule
   \end{tabular}
-\end{table*}
+\end{table}
 
 \newpage
 \appendix
-\onecolumn
-\section{Appendix}
-\subsubsection*{Conformity System Prompt}
-\begin{lstlisting}[breaklines=true, frame=single, basicstyle=\footnotesize\ttfamily, columns=flexible]
+\section{Conformity System Prompt}
+\label{appendix:prompt}
+\begin{Verbatim}[frame=single, fontsize=\footnotesize]
 **Annotator Instructions**
 
 **Objective:** You are a research assistant specializing in Social Psychology and Software Engineering. Your goal is to determine if a Pull Request comment is enforcing a functional technical requirement (FUN), an explicit social norm (NSI), an implicit social norm (INSI), or an expert best practice (ISI).
@@ -275,8 +270,8 @@ Scores are 0–3: 0 (None), 1 (Weak/Suggestion), 2 (Moderate/Expectation), 3 (St
 6. **Bare Code Suggestion (Zero-Text)**
    - *Input:* ```python\n- var x = 5\n+ current_count = 5\n```
    - *Output:* `{"fun_reasoning":"The snippet changes a variable name; it does not fix a functional bug.","fun_score": 0,"nsi_reasoning":"No text is provided to explicitly invoke group norms.","nsi_score": 0,"insi_reasoning":"Per Constraint 4 bare code suggestions without explanatory text are treated as simple helpfulness,not implicit social influence.","insi_score": 0,"isi_reasoning": "No external authority or documentation is cited.","isi_score": 0}`
-\end{lstlisting}
+\end{Verbatim}
 
-\bibliographystyle{ACM-Reference-Format}
-\bibliography{references} % This looks for a file named references.bib
+\bibliographystyle{plain}
+\bibliography{references}
 \end{document}

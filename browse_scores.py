@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Print cleaned PR comments with LLM judge scores in a human-readable layout similar to
-docs/papers/CONFORMITY_SYSTEM_PROMPT.md (Input + FUN/NSI/INSI/ISI scores and reasoning).
+papers/publication1/CONFORMITY_SYSTEM_PROMPT.md (Input + FUN/NSI/INSI/ISI scores and reasoning).
 
 Joins scores + cleaned + events for repo/created_at metadata. Default: random sample; use
 --all for every row for the model, or --comment-id for one id.

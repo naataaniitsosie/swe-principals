@@ -3,7 +3,8 @@ Storage for judge: read cleaned rows from SQLite, write score rows with deduplic
 Cleaned is normalized (id, cleaned_text, tokens); join with events for repo, created_at, type, author_association.
 Filters are applied at DB query time via JOIN + WHERE; extend CLEANED_JOIN_FILTERS to add more.
 
-Scores table stores the full CONFORMITY LLM schema: FUN, NSI, INSI, ISI (reasoning + 0–3 scores).
+Scores table stores the full CONFORMITY LLM schema: FUN, NSI, INSI, ISI
+(reasoning + 0–3 scores, or -1 when model output could not be parsed).
 """
 import json
 import sqlite3
@@ -62,7 +63,7 @@ def _build_cleaned_join_query(filters: dict) -> tuple[str, list]:
     return sql, params
 
 
-# Full CONFORMITY LLM output (docs/papers/CONFORMITY_SYSTEM_PROMPT.md).
+# Full CONFORMITY LLM output (papers/publication1/CONFORMITY_SYSTEM_PROMPT.md).
 SCORES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS scores (
     comment_id TEXT NOT NULL,
@@ -76,9 +77,33 @@ CREATE TABLE IF NOT EXISTS scores (
     isi_score INTEGER NOT NULL,
     isi_reasoning TEXT NOT NULL,
     created_at TEXT,
+    parse_ok INTEGER NOT NULL DEFAULT 1,
+    error_type TEXT NOT NULL DEFAULT '',
+    error_message TEXT NOT NULL DEFAULT '',
+    raw_response TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (comment_id, model_name)
 )
 """
+
+SCORES_SCHEMA_COLUMNS = {
+    "parse_ok": "INTEGER NOT NULL DEFAULT 1",
+    "error_type": "TEXT NOT NULL DEFAULT ''",
+    "error_message": "TEXT NOT NULL DEFAULT ''",
+    "raw_response": "TEXT NOT NULL DEFAULT ''",
+}
+
+
+def _table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table_name})")}
+
+
+def _ensure_scores_schema(conn: sqlite3.Connection) -> None:
+    """Create scores table and add parse metadata columns for older DBs."""
+    conn.executescript(SCORES_SCHEMA)
+    existing_columns = _table_columns(conn, SCORES_TABLE)
+    for column_name, column_def in SCORES_SCHEMA_COLUMNS.items():
+        if column_name not in existing_columns:
+            conn.execute(f"ALTER TABLE {SCORES_TABLE} ADD COLUMN {column_name} {column_def}")
 
 
 class CleanedReader:
@@ -157,7 +182,7 @@ class ScoresWriter:
     def _ensure_table(self) -> None:
         conn = sqlite3.connect(str(self._db_path))
         try:
-            conn.executescript(SCORES_SCHEMA)
+            _ensure_scores_schema(conn)
             conn.commit()
         finally:
             conn.close()
@@ -175,6 +200,10 @@ class ScoresWriter:
         isi_score: int,
         isi_reasoning: str,
         created_at: Optional[str] = None,
+        parse_ok: int = 1,
+        error_type: str = "",
+        error_message: str = "",
+        raw_response: str = "",
     ) -> None:
         """Write one score row (insert or replace)."""
         conn = sqlite3.connect(str(self._db_path))
@@ -182,8 +211,9 @@ class ScoresWriter:
             """
             INSERT OR REPLACE INTO scores
             (comment_id, model_name, fun_score, fun_reasoning, nsi_score, nsi_reasoning,
-             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at,
+             parse_ok, error_type, error_message, raw_response)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 comment_id,
@@ -197,6 +227,10 @@ class ScoresWriter:
                 isi_score,
                 isi_reasoning or "",
                 created_at,
+                1 if parse_ok else 0,
+                error_type or "",
+                error_message or "",
+                raw_response or "",
             ),
         )
         conn.commit()
@@ -217,6 +251,10 @@ class ScoresWriter:
                 int,
                 str,
                 Optional[str],
+                int,
+                str,
+                str,
+                str,
             ]
         ],
     ) -> None:
@@ -228,8 +266,9 @@ class ScoresWriter:
             """
             INSERT OR REPLACE INTO scores
             (comment_id, model_name, fun_score, fun_reasoning, nsi_score, nsi_reasoning,
-             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             insi_score, insi_reasoning, isi_score, isi_reasoning, created_at,
+             parse_ok, error_type, error_message, raw_response)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )
@@ -238,12 +277,21 @@ class ScoresWriter:
 
 
 def get_scored_comment_ids(db_path: Path, model_name: str) -> Set[str]:
-    """Return set of comment_id already scored for the given model (for skip-existing)."""
+    """Return successfully scored comment ids for a model (for skip-existing)."""
     db_path = Path(db_path)
     if not db_path.exists():
         return set()
     conn = sqlite3.connect(str(db_path))
     try:
+        columns = _table_columns(conn, SCORES_TABLE)
+        if not columns:
+            return set()
+        if "parse_ok" in columns:
+            cursor = conn.execute(
+                "SELECT comment_id FROM scores WHERE model_name = ? AND parse_ok = 1",
+                (model_name,),
+            )
+            return {row[0] for row in cursor}
         cursor = conn.execute(
             "SELECT comment_id FROM scores WHERE model_name = ?",
             (model_name,),

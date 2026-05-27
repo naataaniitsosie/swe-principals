@@ -4,8 +4,8 @@ Model resolution for `judge.py` / `judge.runner`.
 Two backends behave differently:
 
 - **Ollama** (`--backend ollama`, the CLI default): `--model` is an Ollama *tag*
-  (e.g. `llama3.1:8b-instruct-q8_0`). We also allow *short aliases* (see
-  `SUPPORTED_MODELS`) so you can pass `llama` instead of the full tag. Whatever
+  (e.g. `gemma4:e4b`). We also allow explicit supported model names (see
+  `SUPPORTED_MODELS`) so you can pass `gemma4-e4b` instead of the full tag. Whatever
   string is resolved here is stored in SQLite as `scores.model_name`.
 
 - **OpenAI** (`--backend openai`): `--model` is an OpenAI API model id
@@ -36,16 +36,20 @@ DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
 # Ollama only (`--backend ollama`, default)
 # ---------------------------------------------------------------------------
 
-# Short CLI aliases -> full Ollama model tags (what `ollama run` / the API expects).
+# Explicit CLI model names -> full Ollama model tags (what `ollama run` / the API expects).
 # Only this backend uses this map. If `--model` is not a key here, it is treated as a
 # literal tag (so you can pass any pulled model without adding it below).
 SUPPORTED_MODELS = {
-    "llama": "llama3.1:8b-instruct-q8_0",
-    "gemma": "gemma2:27b",
+    "gemma4-e4b": "gemma4:e4b",
+    "phi4": "phi4-reasoning",
+    "qwen3-coder": "qwen3-coder-next",
+    "starcoder2-3b": "starcoder2:3b",
+    "starcoder2": "starcoder2:instruct",
+    "granite-code": "granite-code:34b",
 }
 
 # When `--backend ollama` and `--model` is omitted: resolve this *key* via `SUPPORTED_MODELS`.
-DEFAULT_MODEL = "llama"
+DEFAULT_MODEL = "gemma4-e4b"
 
 
 def resolve_model(name: str) -> str:

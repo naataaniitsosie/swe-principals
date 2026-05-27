@@ -1,5 +1,5 @@
 """
-LLM system prompt: full contents of docs/papers/CONFORMITY_SYSTEM_PROMPT.md.
+LLM system prompt: full contents of papers/publication1/CONFORMITY_SYSTEM_PROMPT.md.
 
 The paper links to that file from CONFORMITY.md (LLM Coding Scheme section).
 """
@@ -7,7 +7,7 @@ The paper links to that file from CONFORMITY.md (LLM Coding Scheme section).
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SYSTEM_PROMPT_PATH = _REPO_ROOT / "docs" / "papers" / "CONFORMITY_SYSTEM_PROMPT.md"
+_SYSTEM_PROMPT_PATH = _REPO_ROOT / "papers" / "publication1" / "CONFORMITY_SYSTEM_PROMPT.md"
 
 
 def _load_system_prompt() -> str:
@@ -18,7 +18,7 @@ def _load_system_prompt() -> str:
     return text.strip() + "\n"
 
 
-# Single source of truth: docs/papers/CONFORMITY_SYSTEM_PROMPT.md
+# Single source of truth: papers/publication1/CONFORMITY_SYSTEM_PROMPT.md
 SYSTEM_PROMPT = _load_system_prompt()
 
 USER_MESSAGE_TEMPLATE = """Score this PR comment:

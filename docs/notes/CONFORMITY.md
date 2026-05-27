@@ -88,6 +88,7 @@ For example, consider an anecdotal shift in a software project: on day one, a pr
 1. To what extent can we linguistically distinguish between social gatekeeping (NSI) and technical guidance (ISI) in historical PR comments?
 2. Do instruction-tuned and code-refined LLMs exhibit a higher "Conformity Bias" than the human baseline when generating or evaluating PR feedback? (Phase 3)
 3. Does model training focus correlate with scoring performance on specific conformity dimensions? Specifically: are social-focused models (e.g., Phi-4, Claude Sonnet, Gemma) better at scoring social dimensions (NSI/INSI) than code-focused models (e.g., StarCoder, DeepSeek, Qwen3-Coder)? Is the inverse true for technical dimensions (FUN/ISI)? See [`MODEL_LIST.md`](MODEL_LIST.md) for model categorization.
+4. To what extent do contributors exhibit Anticipatory Conformity Signaling (ACS) in PR descriptions, and does ACS predict the intensity of reviewer conformity pressure (NSI/INSI) in the same PR thread?
 
 ## Methodology
 
@@ -102,14 +103,24 @@ Detect the following in PR review comments:
 (GHArchive)[https://www.gharchive.org/] - A dataset that records the public GitHub timeline, including pull requests, issues, commits, and other events. (Event types)[https://docs.github.com/en/rest/using-the-rest-api/github-event-types?apiVersion=2022-11-28] exist in GitHub's own documentation.
 
 #### GHArchive Event Types
-The POC extracts the following event types for PR comment analysis:
+
+Event types are divided into two scoring tracks based on whose voice is being measured.
+
+##### Track 1 — Reviewer Event Types
+These are the primary source of conformity signals: a reviewer exerting social or technical pressure on a contributor's code. Scored using [`CONFORMITY_SYSTEM_PROMPT.md`](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (FUN / NSI / INSI / ISI).
+
+| Code | GHArchive type | Description |
+|------|----------------|-------------|
+| `PR_REVIEW` | `PullRequestReviewEvent` | PR reviews (approve, request changes, comment) |
+| `PR_REVIEW_COMMENT` | `PullRequestReviewCommentEvent` | Inline comments on PR diff |
+| `ISSUE_COMMENT` | `IssueCommentEvent` | Comments on PRs (PRs are issues) |
+
+##### Track 2 — Contributor Event Types (Anticipatory Conformity)
+`PullRequestEvent` captures the PR title and description written by the *contributor* before review begins. Rather than measuring pressure from a reviewer, Track 2 captures **Anticipatory Conformity Signaling (ACS)**: the contributor's proactive display of norm awareness before any reviewer feedback is received. Scored using a separate prompt (see [Scoring — Track 2](#track-2--contributor-conformity-signaling-pullrequestevent)).
 
 | Code | GHArchive type | Description |
 |------|----------------|-------------|
 | `PULL_REQUEST` | `PullRequestEvent` | PR opened, closed, merged |
-| `PR_REVIEW` | `PullRequestReviewEvent` | PR reviews (approve, request changes, comment) |
-| `PR_REVIEW_COMMENT` | `PullRequestReviewCommentEvent` | Inline comments on PR diff |
-| `ISSUE_COMMENT` | `IssueCommentEvent` | Comments on PRs (PRs are issues) |
 
 **Configuration:** Event types are defined in [`dataset_readers/gharchive/config.py`](dataset_readers/gharchive/config.py) (`DEFAULT_EVENT_TYPES`) and the `EventType` enum in [`dataset_readers/gharchive/models.py`](dataset_readers/gharchive/models.py).
 
@@ -145,19 +156,24 @@ API frameworks have a long history of standardized conventions and best practice
 | [pallets/flask](https://github.com/pallets/flask) | Web framework for Python | Python | Yes | 2010-04-06 |
 | [gin-gonic/gin](https://github.com/gin-gonic/gin) | Web framework for Go | Go | Yes | 2014-07-25 |
 
-#### Data volume (all 10 repos, all of 2024)
+#### Data volume
 
-**Dataset:** All 10 repositories across the **complete 2024 calendar year: 2024-01-01 through 2024-12-31**.
+**Base dataset:** 2024 calendar year (2024-01-01 through 2024-12-31) for all 10 repos.
 
-With the default config (4 event types: `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`), the extractor fetches each hour once and partitions events by repo (one output file per repo):
+**Supplemental data:** hapijs/hapi, koajs/koa, and pallets/flask had insufficient cleaned comments in 2024 alone. Data from 2022–2023 is collected for these repos to supplement the dataset.
 
-| Metric | Actual (2024) |
-|--------|-------------|
-| **Time range** | 2024-01-01 to 2024-12-31 (full calendar year, 366 days) |
-| **Events (raw)** | GitHub events across all 10 repos |
-| **Events (cleaned)** | Comments after preprocessing (bot/CI filtering, text extraction, tokenization) |
-| **Scores** | Comments scored with gpt-5.4-mini |
-| **Size on disk** | SQLite DB at `data/raw/events.db` |
+| Repository | Cleaned comments (2024) | Supplemental years |
+|------------|------------------------|--------------------|
+| django/django | 12,565 | — |
+| spring-projects/spring-boot | 8,464 | — |
+| tiangolo/fastapi | 4,243 | — |
+| nestjs/nest | 3,649 | — |
+| fastify/fastify | 3,375 | — |
+| expressjs/express | 3,059 | — |
+| gin-gonic/gin | 1,021 | — |
+| pallets/flask | 450 | 2023 |
+| koajs/koa | 191 | 2022–2023 |
+| hapijs/hapi | 180 | 2022–2023 |
 
 #### Data collection
 
@@ -172,6 +188,19 @@ This command collected all GitHub events from January 1, 2024 through December 3
 #### Judge Validation (Meta-Evaluation)
 
 Before using LLM judge outputs for analysis, we validate the scoring rubric through **preference-based meta-evaluation**. See [`docs/notes/META_EVALUATION.md`](META_EVALUATION.md) for methodology and implementation.
+
+#### Stratified Sampling
+
+Before scoring, a stratified sample is drawn per repository. Stratification is by **repository × event type** (PR type), ensuring that rare but high-signal event types (e.g., `PullRequestReviewCommentEvent`) are not drowned out by the more numerous `IssueCommentEvent` rows.
+
+**Strategy:** For each repo × event-type cell, draw a minimum of **25 comments** (floor) and a maximum of **50 comments** (cap). If a cell has fewer than 25 available, all available comments are taken. Sampling is seeded for reproducibility.
+
+**Rough math:**
+- 4 event-type strata × 50 max = **200 comments per repo (ceiling)**
+- 10 repos × 200 = **2,000 comments total (ceiling)**
+- Actual totals will be lower: sparse strata (e.g., `PullRequestReviewEvent` has only 3 rows in gin-gonic/gin, 1 in pallets/flask) cannot reach the 50 cap, so the realized corpus will be somewhat below the ceiling.
+
+The sample is stored in a `samples` table in the database; the judge operates over this table rather than all of `cleaned`. Each row is labeled by track so the correct scoring prompt is applied.
 
 ### Scoring
 
@@ -259,7 +288,7 @@ ISI Reasoning: No documentation, facts, or logical arguments are provided.
 ```
 
 #### LLM Coding Scheme (System Prompt)
-See [CONFORMITY_SYSTEM_PROMPT.md](CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
+See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
 
 ### Phase 1 — Surface-Level Conformity Detection (No LLM)
 
@@ -355,7 +384,12 @@ Interpretation:
 Capture implicit and contextual conformity signals not detectable via lexical methods.
 
 #### Procedure
-In this phase, the LLM will annotate the dataset using the **LLM Coding Scheme (System Prompt)** defined in the [Scoring](#scoring) section. The model will evaluate each PR review comment and output a JSON object containing independent reasoning and scores (0–3) for both NSI and ISI.
+In this phase, the LLM annotates the dataset using the scoring prompts defined in the [Scoring](#scoring) section. Each comment is evaluated according to its track:
+
+- **Track 1** (reviewer event types: `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`): scored using the CONFORMITY prompt (FUN / NSI / INSI / ISI).
+- **Track 2** (contributor event type: `PullRequestEvent`): scored using the Contributor Conformity Signaling prompt (A-NSI / A-ISI / NVA).
+
+The model outputs a JSON object with independent reasoning and a 0–3 score per dimension.
 
 #### LLM Conformity Score
 The LLM provides two primary metrics per comment:

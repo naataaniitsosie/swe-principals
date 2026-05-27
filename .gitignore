@@ -14,8 +14,25 @@ __pycache__
 # VSCode
 .vscode/
 
+# Claude generated worktrees
+.claude/worktrees/
+
 # PDFs of MD files
 *.pdf
+*.png
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
 
 # MAC OS
 .DS_Store

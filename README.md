@@ -76,7 +76,7 @@ The DB is a single SQLite file (see **`dataset_readers/gharchive/storage.py`** a
 |----------|-------------------|--------|
 | **events**  | `dataset.py`      | Raw GitHub events from GHArchive. `id`, `event_data` (full JSON). |
 | **cleaned** | `preprocess.py`   | Normalized: `id`, `cleaned_text`, `tokens` only (no duplication of raw). Join with **events** on `id` for repo, created_at, type, author_association. |
-| **scores**  | `judge.py`        | LLM judge output. One row per (comment_id, model_name): FUN/NSI/INSI/ISI scores and reasoning each (0–3 per [`CONFORMITY_SYSTEM_PROMPT.md`](docs/papers/CONFORMITY_SYSTEM_PROMPT.md)). |
+| **scores**  | `judge.py`        | LLM judge output. One row per (comment_id, model_name): FUN/NSI/INSI/ISI scores and reasoning each (0–3 per [`CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md)). |
 
 - **events** schema and extraction: **`dataset_readers/gharchive/storage.py`**, **`dataset.py`**.
 - **cleaned** (normalized): **`dataset_readers/gharchive/storage.py`** (`CLEANED_TABLE_SCHEMA`). Written by **`preprocessing/pipeline.py`**; readers JOIN with events for metadata.
@@ -173,11 +173,12 @@ See [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.
 
 ### 3. Judge (LLM scoring) (`judge.py`)
 
-Scores cleaned PR comments using the rubric in [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](docs/papers/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **cleaned**, writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
+Scores cleaned PR comments using the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **cleaned**, writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
 
 ```bash
 python judge.py
-python judge.py --model llama --limit 10
+python judge.py --model gemma4-e4b --limit 10
+python judge.py --model starcoder2-3b --limit 10
 python judge.py --backend openai --limit 5
 python judge.py --backend openai --model gpt-5.4-mini --limit 5
 python judge.py --skip-existing
@@ -186,10 +187,11 @@ python judge.py --skip-existing
 | Flag | Default | Description |
 |------|---------|--------------|
 | `--backend`, `-b` | `ollama` | `ollama` or `openai`. |
-| `--model`, `-m` | backend-specific | Ollama short name / tag, or OpenAI model id. |
+| `--model`, `-m` | backend-specific | Ollama supported name / tag (`gemma4-e4b`, `phi4`, `qwen3-coder`, `starcoder2-3b`, `starcoder2`, `granite-code`), or OpenAI model id. |
 | `--limit`, `-n` | none | Max comments to score (for testing). |
 | `--skip-existing` | off | Skip comments already scored for this model. |
 | `--db` | `project_config` | Path to SQLite DB (default: `data/raw/events.db`). |
+| `--repo`, `-r` | all repos | Restrict to one repo (`owner/name`). |
 
 #### Clear all LLM scores (`scores` table) — **dangerous**
 
@@ -207,7 +209,7 @@ The next run of `python judge.py` will recreate `scores` on first write (empty u
 
 #### Browse scores (`browse_scores.py`)
 
-Prints **cleaned comment text** plus **FUN / NSI / INSI / ISI** scores and reasoning in a layout aligned with [`docs/papers/CONFORMITY_SYSTEM_PROMPT.md`](docs/papers/CONFORMITY_SYSTEM_PROMPT.md) (Input, Tags, per-dimension scores). Joins **scores**, **cleaned**, and **events**. **`--model`** must match `scores.model_name` exactly (same string the judge stored—use `SELECT DISTINCT model_name FROM scores;` to list).
+Prints **cleaned comment text** plus **FUN / NSI / INSI / ISI** scores and reasoning in a layout aligned with [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (Input, Tags, per-dimension scores). Joins **scores**, **cleaned**, and **events**. **`--model`** must match `scores.model_name` exactly (same string the judge stored—use `SELECT DISTINCT model_name FROM scores;` to list).
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -222,10 +224,10 @@ Prints **cleaned comment text** plus **FUN / NSI / INSI / ISI** scores and reaso
 Ollama (full model tag in `scores.model_name`):
 
 ```bash
-python judge.py --model llama --limit 200
-python browse_scores.py --model llama3.1:8b-instruct-q8_0 --sample-n 15
-python browse_scores.py --model llama3.1:8b-instruct-q8_0 --comment-id "<event_id>"
-python browse_scores.py --model llama3.1:8b-instruct-q8_0 --all > sample_scores.md
+python judge.py --model gemma4-e4b --limit 200
+python browse_scores.py --model gemma4:e4b --sample-n 15
+python browse_scores.py --model gemma4:e4b --comment-id "<event_id>"
+python browse_scores.py --model gemma4:e4b --all > sample_scores.md
 ```
 
 OpenAI (default API model is **`gpt-5.4-mini`**; same string is stored in `scores` as `model_name`):
