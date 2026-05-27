@@ -29,9 +29,19 @@ dataset_readers/
 
 ## BigQuery Reader
 
-Queries `githubarchive.day/month/year` — preferred for 2023–2025 data because it scales to multi-year pulls without local downloads and is idempotent on re-runs.
-
 - [Overview & setup](docs/bigquery/OVERVIEW.md)
 - [Schema reference](docs/bigquery/SCHEMA.md)
 - [Cost analysis](docs/bigquery/COST.md)
 - [Sample queries](docs/bigquery/SAMPLE_QUERIES.md)
+
+## Decision Log
+
+### 2025-05-27 — BigQuery not adopted; continuing with GHArchive API
+
+After exploring Google BigQuery as a mechanism for pulling 2023–2025 GitHub event data at scale, we decided **not to use it**.
+
+**Reason:** The required query (all four event types + `payload` column for 10 repos, 2023–2025) scans **~13–14 TB**. BigQuery's free tier covers 1 TB/month. At the on-demand rate of **$6.25/TB**, the full pull would cost approximately **$81–$87**. Spreading the query across the free tier over multiple calendar months is possible but impractical for a research timeline.
+
+**Decision:** Continue using the GHArchive HTTP reader (`dataset_readers/gharchive/`), which is already implemented and costs nothing beyond disk and time.
+
+**To revisit:** This decision should be reconsidered if the project secures funding. At ~$81 for a one-time complete historical pull, BigQuery remains the most operationally robust option (idempotent, no partial-download state, covers any date range in seconds).

@@ -6,73 +6,9 @@
 
 ## One-and-Done: Full 2023–2025 Local Download
 
-The BigQuery console caps direct downloads at ~16,000 rows, so the full pull goes through the **Python client** (streams row-by-row) or the **`bq` CLI** (buffers in memory). Pick one:
+The BigQuery console caps direct downloads at ~16,000 rows. For a full pull, use the `bq` CLI:
 
 > **Why `month.*` and not `year.*`:** `githubarchive.year` tables only exist through 2015 — there are no year-level tables for 2016 onward. Source: [gharchive.org/#bigquery](https://www.gharchive.org/#bigquery). For 2023–2025, `month.*` with a full-year suffix range is the equivalent.
-
-### Option A — Python client (recommended)
-
-```python
-# scripts/bq_pull.py
-from google.cloud import bigquery
-import json, os
-from pathlib import Path
-
-PROJECT = os.environ["GCP_PROJECT"]  # set in .env
-OUTPUT  = Path("data/raw/github_events_2023_2025.jsonl")
-
-SQL = """
-SELECT
-  id,
-  type,
-  actor.login                                  AS actor_login,
-  repo.name                                    AS repo_name,
-  JSON_VALUE(payload, '$.action')              AS action,
-  JSON_VALUE(payload, '$.number')              AS pr_number,
-  JSON_VALUE(payload, '$.pull_request.title')  AS pr_title,
-  JSON_VALUE(payload, '$.review.body')         AS review_body,
-  JSON_VALUE(payload, '$.review.state')        AS review_state,
-  JSON_VALUE(payload, '$.comment.body')        AS comment_body,
-  payload,
-  created_at
-FROM `githubarchive.month.*`
-WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202512'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-  AND repo.name IN (
-    'expressjs/express',
-    'nestjs/nest',
-    'koajs/koa',
-    'fastify/fastify',
-    'hapijs/hapi',
-    'spring-projects/spring-boot',
-    'tiangolo/fastapi',
-    'django/django',
-    'pallets/flask',
-    'gin-gonic/gin'
-  )
-ORDER BY created_at
-"""
-
-client = bigquery.Client(project=PROJECT)
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-
-with OUTPUT.open("w") as f:
-    for row in client.query(SQL).result():
-        f.write(json.dumps(dict(row)) + "\n")
-
-print(f"Saved to {OUTPUT}")
-```
-
-```bash
-caffeinate python scripts/bq_pull.py
-```
-
-### Option B — `bq` CLI (no Python)
 
 ```bash
 bq query \
@@ -104,8 +40,6 @@ bq query \
  ORDER BY created_at' \
 > data/raw/github_events_2023_2025.jsonl
 ```
-
-> **Note:** `bq query` buffers the full result set before writing. For very large result sets, prefer Option A.
 
 ---
 
