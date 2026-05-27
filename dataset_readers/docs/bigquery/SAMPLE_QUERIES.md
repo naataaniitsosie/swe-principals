@@ -1,212 +1,14 @@
 # BigQuery Sample Queries
 
-Paste these directly into the [BigQuery console](https://console.cloud.google.com/bigquery). All queries target the [`githubarchive`](https://www.gharchive.org) public dataset.
-
-> **Tip:** Click **Dry run** before running to see estimated bytes scanned without spending quota.
-
----
-
-## Dataset Granularity
-
-The archive is split across three datasets — choose the coarsest granularity that fits your date range to minimise bytes scanned:
-
-| Dataset | Table pattern | Best for |
-|---|---|---|
-| `githubarchive.year` | `YYYY` — e.g. `2023` | Full-year or multi-year pulls (2011–2015 only as pre-aggregated tables) |
-| `githubarchive.month` | `YYYYMM` — e.g. `202306` | Monthly pulls or ranges spanning several months |
-| `githubarchive.day` | `YYYYMMDD` — e.g. `20230601` | Single-day lookups or ranges of a few days |
-
-> **Note:** Pre-aggregated `year` tables exist for 2011–2015. For 2016 onward, use `month.*` or `day.*` with a `_TABLE_SUFFIX` range.
-
----
-
-## Day Queries (`githubarchive.day`)
-
-### 1. Sanity check — single day, one repo
-
-Cheapest starting point. Confirms the schema and that events exist for your target repo.
-
-```sql
-SELECT
-  id,
-  type,
-  actor.login      AS actor_login,
-  repo.name        AS repo_name,
-  JSON_VALUE(payload, '$.action') AS action,
-  created_at
-FROM `githubarchive.day.20230601`
-WHERE repo.name = 'django/django'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-LIMIT 50;
-```
-
-### 2. Count events by type — one week
-
-```sql
-SELECT
-  type,
-  COUNT(*) AS event_count
-FROM `githubarchive.day.*`
-WHERE _TABLE_SUFFIX BETWEEN '20230601' AND '20230607'
-  AND repo.name = 'django/django'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-GROUP BY type
-ORDER BY event_count DESC;
-```
-
-### 3. Inspect payload for one event type
-
-```sql
-SELECT
-  type,
-  JSON_VALUE(payload, '$.action')       AS action,
-  JSON_VALUE(payload, '$.review.state') AS review_state,
-  JSON_VALUE(payload, '$.review.body')  AS review_body,
-  actor.login                           AS reviewer,
-  created_at
-FROM `githubarchive.day.20230601`
-WHERE repo.name = 'django/django'
-  AND type = 'PullRequestReviewEvent'
-LIMIT 10;
-```
-
----
-
-## Month Queries (`githubarchive.month`)
-
-### 4. Count events by type — one month
-
-```sql
-SELECT
-  type,
-  COUNT(*) AS event_count
-FROM `githubarchive.month.202306`
-WHERE repo.name = 'django/django'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-GROUP BY type
-ORDER BY event_count DESC;
-```
-
-### 5. Full payload pull — multi-repo, one month
-
-The production-style query for a monthly slice. Keep the column list minimal to limit scan volume.
-
-```sql
-SELECT
-  id,
-  type,
-  actor.login                               AS actor_login,
-  repo.name                                 AS repo_name,
-  JSON_VALUE(payload, '$.action')           AS action,
-  JSON_VALUE(payload, '$.number')           AS pr_number,
-  JSON_VALUE(payload, '$.pull_request.title') AS pr_title,
-  JSON_VALUE(payload, '$.review.body')      AS review_body,
-  JSON_VALUE(payload, '$.review.state')     AS review_state,
-  JSON_VALUE(payload, '$.comment.body')     AS comment_body,
-  created_at
-FROM `githubarchive.month.202306`
-WHERE type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-  AND repo.name IN (
-    'django/django',
-    'rails/rails',
-    'torvalds/linux'
-  )
-ORDER BY created_at;
-```
-
-### 6. Monthly event counts over a year (activity trend)
-
-```sql
-SELECT
-  _TABLE_SUFFIX                   AS month,
-  type,
-  COUNT(*)                        AS event_count
-FROM `githubarchive.month.*`
-WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202312'
-  AND repo.name = 'django/django'
-  AND type IN (
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent'
-  )
-GROUP BY month, type
-ORDER BY month, type;
-```
-
----
-
-## Year Queries (`githubarchive.year`)
-
-> Pre-aggregated year tables cover **2011–2015 only**. For 2016 onward use `month.*`.
-
-### 7. Count events by type — single year
-
-```sql
-SELECT
-  type,
-  COUNT(*) AS event_count
-FROM `githubarchive.year.2015`
-WHERE repo.name = 'django/django'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-GROUP BY type
-ORDER BY event_count DESC;
-```
-
-### 8. Multi-year count — 2011 through 2015
-
-```sql
-SELECT
-  _TABLE_SUFFIX AS year,
-  type,
-  COUNT(*)      AS event_count
-FROM `githubarchive.year.*`
-WHERE _TABLE_SUFFIX BETWEEN '2011' AND '2015'
-  AND repo.name = 'django/django'
-  AND type IN (
-    'PullRequestEvent',
-    'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
-  )
-GROUP BY year, type
-ORDER BY year, type;
-```
+> **Tip:** Click **Dry run** in the console before running to see estimated bytes scanned without spending quota.
 
 ---
 
 ## One-and-Done: Full 2023–2025 Local Download
 
-The BigQuery console caps direct CSV/JSON downloads at ~16,000 rows, so a full multi-year pull must go through the **Python client** (streams row-by-row, no Cloud Storage needed) or the **`bq` CLI** (buffers in memory). Pick one:
-
----
+The BigQuery console caps direct downloads at ~16,000 rows, so the full pull goes through the **Python client** (streams row-by-row) or the **`bq` CLI** (buffers in memory). Pick one:
 
 ### Option A — Python client (recommended)
-
-Streams results directly to a local JSONL file. Integrates with the reader pipeline and doesn't buffer the full result set in memory.
 
 ```python
 # scripts/bq_pull.py
@@ -268,8 +70,6 @@ print(f"Saved to {OUTPUT}")
 caffeinate python scripts/bq_pull.py
 ```
 
----
-
 ### Option B — `bq` CLI (no Python)
 
 ```bash
@@ -307,61 +107,89 @@ bq query \
 
 ---
 
-## Cross-Range Queries (2023–2025)
+## Exploration & Learning Queries
 
-For the primary research window, use `githubarchive.month.*`. Run a dry run first — this spans 36 monthly tables.
+The queries below are for understanding the dataset, checking schema, and validating before a full pull.
 
-### 9. Full 2023–2025 event count by type
+### Dataset granularity
+
+| Dataset | Table pattern | Best for |
+|---|---|---|
+| `githubarchive.year` | `YYYY` — e.g. `2023` | Full-year pulls (pre-aggregated 2011–2015 only) |
+| `githubarchive.month` | `YYYYMM` — e.g. `202306` | Multi-month ranges |
+| `githubarchive.day` | `YYYYMMDD` — e.g. `20230601` | Single-day lookups |
+
+> Pre-aggregated `year` tables exist for 2011–2015. For 2016 onward, use `month.*` or `day.*`.
+
+### Sanity check — single day, one repo
+
+```sql
+SELECT
+  id,
+  type,
+  actor.login      AS actor_login,
+  repo.name        AS repo_name,
+  JSON_VALUE(payload, '$.action') AS action,
+  created_at
+FROM `githubarchive.day.20230601`
+WHERE repo.name = 'django/django'
+  AND type IN (
+    'PullRequestEvent',
+    'PullRequestReviewEvent',
+    'PullRequestReviewCommentEvent',
+    'IssueCommentEvent'
+  )
+LIMIT 50;
+```
+
+### Count events by type — one month
 
 ```sql
 SELECT
   type,
   COUNT(*) AS event_count
-FROM `githubarchive.month.*`
-WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202512'
+FROM `githubarchive.month.202306`
+WHERE repo.name = 'django/django'
   AND type IN (
     'PullRequestEvent',
     'PullRequestReviewEvent',
     'PullRequestReviewCommentEvent',
     'IssueCommentEvent'
   )
-  AND repo.name = 'django/django'
 GROUP BY type
 ORDER BY event_count DESC;
 ```
 
-### 10. Export 2023–2025 to Cloud Storage (large pulls)
-
-For multi-repo pulls too large to display in the console.
+### Inspect payload for one event type
 
 ```sql
-EXPORT DATA OPTIONS (
-  uri = 'gs://your-bucket/github-events/*.json',
-  format = 'JSON',
-  overwrite = true
-) AS
 SELECT
-  id,
   type,
-  actor.login                           AS actor_login,
-  repo.name                             AS repo_name,
   JSON_VALUE(payload, '$.action')       AS action,
-  JSON_VALUE(payload, '$.number')       AS pr_number,
-  JSON_VALUE(payload, '$.review.body')  AS review_body,
   JSON_VALUE(payload, '$.review.state') AS review_state,
-  JSON_VALUE(payload, '$.comment.body') AS comment_body,
-  payload,
+  JSON_VALUE(payload, '$.review.body')  AS review_body,
+  actor.login                           AS reviewer,
   created_at
+FROM `githubarchive.day.20230601`
+WHERE repo.name = 'django/django'
+  AND type = 'PullRequestReviewEvent'
+LIMIT 10;
+```
+
+### Monthly event counts over a year (activity trend)
+
+```sql
+SELECT
+  _TABLE_SUFFIX   AS month,
+  type,
+  COUNT(*)        AS event_count
 FROM `githubarchive.month.*`
-WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202512'
+WHERE _TABLE_SUFFIX BETWEEN '202301' AND '202312'
+  AND repo.name = 'django/django'
   AND type IN (
-    'PullRequestEvent',
     'PullRequestReviewEvent',
-    'PullRequestReviewCommentEvent',
-    'IssueCommentEvent'
+    'PullRequestReviewCommentEvent'
   )
-  AND repo.name IN (
-    'django/django',
-    'rails/rails'
-  );
+GROUP BY month, type
+ORDER BY month, type;
 ```
