@@ -29,8 +29,9 @@ dataset_readers/
 
 ## BigQuery Reader
 
-Queries `bigquery-public-data.github_archive.*` — preferred for 2023–2025 data because it scales to multi-year pulls without local downloads and is idempotent on re-runs.
+Queries `githubarchive.day/month/year` — preferred for 2023–2025 data because it scales to multi-year pulls without local downloads and is idempotent on re-runs.
 
 - [Overview & setup](docs/bigquery/OVERVIEW.md)
+- [Schema reference](docs/bigquery/SCHEMA.md)
 - [Cost analysis](docs/bigquery/COST.md)
 - [Sample queries](docs/bigquery/SAMPLE_QUERIES.md)
