@@ -21,6 +21,14 @@ dataset_readers/
     └── reader.py
 ```
 
+## Usage
+
+```bash
+python dataset.py --dataset-reader gharchive --start-date 2024-01-01 --end-date 2024-02-01
+```
+
+See [docs/CLI.md](docs/CLI.md) for all options.
+
 ## Adding a Reader
 
 1. Create `dataset_readers/<name>/reader.py`
