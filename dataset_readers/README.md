@@ -24,8 +24,10 @@ dataset_readers/
 ## Usage
 
 ```bash
-python dataset.py --dataset-reader gharchive --start-date 2024-01-01 --end-date 2024-02-01
+caffeinate python dataset.py --dataset-reader gharchive --start-date 2024-01-01 --end-date 2024-02-01
 ```
+
+Output writes **directly to SQLite** (`data/raw/events.db`, `events` table). No intermediate files are created.
 
 See [docs/CLI.md](docs/CLI.md) for all options.
 
