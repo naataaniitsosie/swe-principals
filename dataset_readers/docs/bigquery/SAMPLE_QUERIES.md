@@ -1,6 +1,6 @@
 # BigQuery Sample Queries
 
-Paste these directly into the [BigQuery console](https://console.cloud.google.com/bigquery). Each query targets `bigquery-public-data.github_archive.*` (public, no billing required to query, but charges apply against your project).
+Paste these directly into the [BigQuery console](https://console.cloud.google.com/bigquery). Each query targets the [`githubarchive.day`](https://www.gharchive.org) public dataset (no billing required to read it, but scan charges apply to your project).
 
 > **Tip:** Click **Dry run** in the console before running to see estimated bytes scanned without spending quota.
 
@@ -18,7 +18,7 @@ SELECT
   repo.name        AS repo_name,
   JSON_VALUE(payload, '$.action') AS action,
   created_at
-FROM `bigquery-public-data.github_archive.20230601`
+FROM `githubarchive.day.20230601`
 WHERE repo.name = 'torvalds/linux'
   AND type IN (
     'PullRequestEvent',
@@ -39,7 +39,7 @@ Good for gauging event volume before pulling full payloads.
 SELECT
   type,
   COUNT(*) AS event_count
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20230131'
   AND repo.name = 'torvalds/linux'
   AND type IN (
@@ -62,7 +62,7 @@ Replace `'torvalds/linux'` with your target repo. Run a **dry run** first — th
 SELECT
   type,
   COUNT(*) AS event_count
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20251231'
   AND repo.name = 'torvalds/linux'
   AND type IN (
@@ -93,7 +93,7 @@ SELECT
   JSON_VALUE(payload, '$.comment.body') AS comment_body,
   payload,
   created_at
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20231231'
   AND type IN (
     'PullRequestEvent',
@@ -119,7 +119,7 @@ Useful when you need to understand the nested JSON structure before writing extr
 SELECT
   type,
   TO_JSON_STRING(payload) AS raw_payload
-FROM `bigquery-public-data.github_archive.20230601`
+FROM `githubarchive.day.20230601`
 WHERE repo.name = 'torvalds/linux'
   AND type = 'PullRequestReviewCommentEvent'
 LIMIT 5;
@@ -136,7 +136,7 @@ SELECT
   PARSE_DATE('%Y%m%d', _TABLE_SUFFIX) AS event_date,
   type,
   COUNT(*) AS event_count
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20230131'
   AND repo.name = 'torvalds/linux'
   AND type IN (
@@ -167,7 +167,7 @@ SELECT
   JSON_VALUE(payload, '$.action') AS action,
   payload,
   created_at
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20251231'
   AND type IN (
     'PullRequestEvent',

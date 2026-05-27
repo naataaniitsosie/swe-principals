@@ -16,7 +16,7 @@ The 1 TB free tier is generous — a typical filtered query for this project (sp
 
 ## Estimated Query Costs — 2023–2025
 
-Each `github_archive` daily table is roughly **7–10 GB**. A three-year range spans ~1 095 daily tables, totalling ~8–11 TB unfiltered.
+Each `githubarchive.day` table is roughly **7–10 GB**. A three-year range spans ~1 095 daily tables, totalling ~8–11 TB unfiltered.
 
 | Query scope | Bytes scanned | Estimated cost |
 |---|---|---|

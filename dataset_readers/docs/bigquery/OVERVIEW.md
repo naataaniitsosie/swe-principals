@@ -11,11 +11,13 @@ Two properties make it the preferred mechanism for 2023–2025 data:
 
 ## Dataset
 
+Source: [gharchive.org](https://www.gharchive.org) — records every public GitHub event since 2011 and exposes them as a public BigQuery dataset.
+
 ```
-bigquery-public-data.github_archive.*
+githubarchive.day.<YYYYMMDD>
 ```
 
-Daily partition tables follow the naming pattern `YYYYMMDD`. Relevant event types for this project:
+Tables live in the `githubarchive` GCP project under the `day` dataset, one table per calendar day. Use a wildcard with `_TABLE_SUFFIX` to span multiple days. Relevant event types for this project:
 
 | Event type | `type` filter value |
 |---|---|
@@ -54,7 +56,7 @@ SELECT
   JSON_VALUE(payload, '$.action') AS action,
   payload,
   created_at
-FROM `bigquery-public-data.github_archive.*`
+FROM `githubarchive.day.*`
 WHERE _TABLE_SUFFIX BETWEEN '20230101' AND '20251231'
   AND type IN (
     'PullRequestEvent',
