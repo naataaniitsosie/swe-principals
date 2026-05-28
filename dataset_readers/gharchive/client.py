@@ -100,6 +100,8 @@ class GHArchiveClient:
         repo_names: Optional[Set[str]] = None,
         event_types: Optional[Set[str]] = None,
     ) -> Iterator[List[Dict[str, Any]]]:
+        """Yield hourly event lists for [start_date, end_date). end_date is exclusive internally;
+        dataset.py adds one day when parsing --end-date so the CLI flag is inclusive."""
         current_date = start_date
 
         while current_date < end_date:

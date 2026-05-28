@@ -180,7 +180,7 @@ API frameworks have a long history of standardized conventions and best practice
 To extract data for a specific date range:
 
 ```bash
-python dataset.py --start-date 2024-01-01 --end-date 2025-01-01 --output-dir ./data/raw
+python dataset.py --start-date 2024-01-01 --end-date 2024-12-31 --output-dir ./data/raw
 ```
 
 This command collected all GitHub events from January 1, 2024 through December 31, 2024 for the 10 repositories under investigation.
@@ -468,7 +468,7 @@ python dataset.py --dataset-reader bigquery # Not supported yet
 Flags for `dataset.py`:
 - `--dataset-reader`, `-r` – Reader to use (default: `gharchive`)
 - `--start-date` – Start date YYYY-MM-DD (default: 2024-02-01)
-- `--end-date` – End date YYYY-MM-DD (default: 2024-02-02)
+- `--end-date` – Inclusive end date YYYY-MM-DD (default: 2024-02-01)
 - `--output-dir` – Output directory (default: `./data/raw`)
 
 ## Results

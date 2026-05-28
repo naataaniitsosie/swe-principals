@@ -65,7 +65,7 @@ python dataset.py --dataset-reader bigquery
 Flags for `dataset.py`:
 - `--dataset-reader`, `-r` – Reader to use (default: `gharchive`)
 - `--start-date` – Start date YYYY-MM-DD (default: 2024-02-01)
-- `--end-date` – End date YYYY-MM-DD (default: 2024-02-02)
+- `--end-date` – Inclusive end date YYYY-MM-DD (default: 2024-02-01)
 - `--output-dir` – Output directory (default: `./data/raw`)
 
 **2. Preprocess and optional scripts** (see main [README](../../README.md)): `python preprocess.py`, then e.g. `python browse_comments.py` or `python judge.py`.

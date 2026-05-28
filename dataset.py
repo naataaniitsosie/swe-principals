@@ -7,7 +7,7 @@ import argparse
 import logging
 
 import project_config  # noqa: F401 — load `.env` from repo root (shared with judge / config)
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dataset_readers.gharchive.config import REPOSITORIES, DEFAULT_EVENT_TYPES
 from dataset_readers import (
@@ -45,8 +45,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--end-date",
         type=str,
-        default="2024-02-02",
-        help="End date (YYYY-MM-DD)",
+        default="2024-02-01",
+        help="Inclusive end date (YYYY-MM-DD). All 24 hours of this day are fetched.",
     )
     return parser.parse_args()
 
@@ -56,7 +56,7 @@ def main() -> int:
 
     repositories = REPOSITORIES
     start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
-    end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d") + timedelta(days=1)  # inclusive → exclusive for internal range
     event_types = DEFAULT_EVENT_TYPES
 
     logger.info("=" * 60)
@@ -64,7 +64,7 @@ def main() -> int:
     logger.info("=" * 60)
     logger.info(f"Dataset reader: {args.dataset_reader}")
     logger.info("Repositories: %d — %s", len(repositories), ", ".join(r.full_name for r in repositories))
-    logger.info("Date range: %s to %s", start_date.date(), end_date.date())
+    logger.info("Date range: %s to %s (inclusive)", start_date.date(), (end_date - timedelta(days=1)).date())
     logger.info("Event types: %s", ", ".join(event_types))
     logger.info("=" * 60)
 

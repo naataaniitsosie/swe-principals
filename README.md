@@ -168,7 +168,7 @@ Run in order: **1. Extract** → **2. Preprocess** → **3. Sample** → **4. Ju
 
 **Chaining:**
 ```bash
-python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
+python dataset.py --start-date 2024-01-01 --end-date 2024-01-01
 python preprocess.py
 python sample.py
 python judge.py
@@ -182,7 +182,7 @@ Extract PR events from GHArchive for all repositories under investigation (see C
 
 ```bash
 python dataset.py
-python dataset.py --start-date 2024-01-01 --end-date 2024-01-02
+python dataset.py --start-date 2024-01-01 --end-date 2024-01-01
 ```
 
 | Flag | Default | Description |
