@@ -110,17 +110,18 @@ A missing or empty login is also treated as a bot (dropped).
 
 ## Output Schema
 
-Written to the `cleaned` table in `events.db`. Defined by `slim_output` in `workflow.py` and `_create_cleaned_table` in `dataset_readers/gharchive/storage.py`.
+Written to the `cleaned` table in `events.db`. Defined by `slim_output` in `workflow.py` and `_create_cleaned_table` in `dataset_readers/gharchive/storage.py`. See [`FIELD_EXTRACTION.md`](FIELD_EXTRACTION.md) for the exact JSON paths and extraction rationale for each event type.
 
 | Column | Source | Description |
 |--------|--------|-------------|
 | `id` | `event.id` | GitHub event ID (primary key; FK → `events.id`) |
 | `cleaned_text` | workflow output | Stripped, lowercased comment/PR text |
-| `repo` | `event.repo.name` | e.g. `django/django` |
-| `created_at` | `event.created_at` | ISO 8601 timestamp |
-| `type` | `event.type` | e.g. `IssueCommentEvent` |
-| `author_association` | payload field | e.g. `MEMBER`, `CONTRIBUTOR`, `NONE` |
 | `tokens` | workflow output | JSON array of word tokens |
+| `repo` | `event.repo.name` | e.g. `django/django` |
+| `pr_number` | payload field | Pull request number. NULL for plain `IssueCommentEvent` rows (non-PR issues). |
+| `event_type` | `event.type` | e.g. `IssueCommentEvent` (stored as `event_type` to avoid the SQL reserved word `type`) |
+| `created_at` | `event.created_at` | ISO 8601 timestamp |
+| `author_association` | payload field | e.g. `MEMBER`, `CONTRIBUTOR`, `NONE`. Empty string when absent. |
 
 `author_association` is extracted from the first non-null of: `payload.comment`, `payload.review`, `payload.pull_request`, `payload.issue`.
 
@@ -171,7 +172,6 @@ pipeline.run()
 2. **Changing the minimum token threshold:** Pass `--min-tokens N` to `preprocess.py`. No code change required.
 3. **Re-enabling `filter_trivial`:** Uncomment the line in `default_workflow()`. Understand that this will meaningfully reduce the `cleaned` row count (LGTM/thanks comments are common). Re-run `preprocess.py` and `sample.py` to keep `samples` in sync.
 4. **Changing the `cleaned` schema:** Update `_create_cleaned_table` in `dataset_readers/gharchive/storage.py` and the Output Schema table above. `sampling/storage.py` and `judge.py` query `cleaned` — check them for breakage.
-5. **Do not add raw event fields to `cleaned`:** The full payload is always available via `events.event_data`; duplicating it in `cleaned` wastes disk and creates silent staleness.
 
 ---
 

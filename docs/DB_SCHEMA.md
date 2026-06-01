@@ -63,15 +63,18 @@ Use `json_extract(event_data, '$.field')` in SQL to read fields.
 
 ## Table: `cleaned`
 
-Normalized preprocessed data. One row per event that passed preprocessing. **Only derived data** is stored here; fields that exist in raw (`events`) are not duplicated. Join with `events` on `id` to get `repo`, `created_at`, `type`, `author_association`.
+Normalized preprocessed data. One row per event that passed preprocessing. Frequently-queried metadata fields are materialized here to avoid repeated `json_extract` joins against `events` at query time (see [`preprocessing/FIELD_EXTRACTION.md`](../preprocessing/FIELD_EXTRACTION.md) for extraction paths and rationale).
 
-| Column         | Type | Description |
-|----------------|------|-------------|
-| `id`           | TEXT | Primary key; same as `events.id` (FK to events). |
-| `cleaned_text` | TEXT | Normalized comment text (lowercased, code/images/diff stripped). |
-| `tokens`       | TEXT | JSON array of word tokens (list of strings). |
-
-**To get a full record:** `SELECT c.id, c.cleaned_text, c.tokens, e.event_data FROM cleaned c INNER JOIN events e ON e.id = c.id`. Then derive `repo`, `created_at`, `type`, `author_association` from `e.event_data` (e.g. via `preprocessing.workflow.metadata_from_raw_event`).
+| Column               | Type    | Description |
+|----------------------|---------|-------------|
+| `id`                 | TEXT    | Primary key; same as `events.id` (FK to events). |
+| `cleaned_text`       | TEXT    | Normalized comment text (lowercased, code/images/diff stripped). |
+| `tokens`             | TEXT    | JSON array of word tokens (list of strings). |
+| `repo`               | TEXT    | `owner/name` string (e.g. `django/django`). Materialized from `$.repo.name`. |
+| `pr_number`          | INTEGER | Pull request number. NULL for `IssueCommentEvent` rows that are on plain issues (not PRs). |
+| `event_type`         | TEXT    | GitHub event type (e.g. `PullRequestReviewCommentEvent`). Materialized from `$.type`. |
+| `created_at`         | TEXT    | ISO 8601 timestamp. Materialized from `$.created_at`. |
+| `author_association` | TEXT    | Commenter's association to the repo (e.g. `CONTRIBUTOR`, `MEMBER`). Extracted from the event-type-specific payload path; empty string when absent. |
 
 ---
 
@@ -113,9 +116,9 @@ SELECT COUNT(*) FROM events;
 SELECT COUNT(*) FROM cleaned;
 SELECT COUNT(*) FROM scores;
 
--- Cleaned + events: comments per repo (repo lives in events)
-SELECT json_extract(e.event_data, '$.repo.name') AS repo, COUNT(*)
-FROM cleaned c INNER JOIN events e ON e.id = c.id
+-- Cleaned: comments per repo
+SELECT repo, COUNT(*)
+FROM cleaned
 GROUP BY 1 ORDER BY 1;
 
 -- Scores: row counts and mean scores per model (valid rows only; scores are 0–3)
@@ -191,5 +194,5 @@ To **inspect** comments with scores in a human-readable layout (similar to the C
 ## Where schemas are defined in code
 
 - **events / cleaned table layout:** `dataset_readers/gharchive/storage.py`
-- **cleaned table (normalized):** `dataset_readers/gharchive/storage.py` (`CLEANED_TABLE_SCHEMA`). Written by `preprocessing/pipeline.py`; readers JOIN with `events` for metadata.
+- **cleaned table (normalized):** `dataset_readers/gharchive/storage.py` (`CLEANED_TABLE_SCHEMA`). Written by `preprocessing/pipeline.py`. Materialized columns (`repo`, `pr_number`, `event_type`, `created_at`, `author_association`) are extracted at INSERT time — see [`preprocessing/FIELD_EXTRACTION.md`](../preprocessing/FIELD_EXTRACTION.md).
 - **scores table:** `judge/storage.py` (`SCORES_SCHEMA`)
