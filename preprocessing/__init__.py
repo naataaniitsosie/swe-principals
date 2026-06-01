@@ -1,6 +1,6 @@
 """
 Preprocessing for PR comment data: chainable workflow over events.
-Steps: filter bot/CI, extract text, filter trivial, strip code blocks and images and diff snippets, lowercase and tokenize, filter min tokens, output slim record. See workflow.default_workflow() and papers/CONFORMITY.md.
+Steps: filter bot/CI, extract text, strip code blocks and images and diff snippets, lowercase and tokenize, filter min tokens, output slim record. See workflow.default_workflow() and papers/CONFORMITY.md.
 """
 from preprocessing.pipeline import CleanerPipeline
 from preprocessing.workflow import (
@@ -10,7 +10,6 @@ from preprocessing.workflow import (
     default_workflow,
     extract_text,
     filter_bot,
-    filter_trivial,
     strip_code,
     strip_images,
     strip_diff,
@@ -29,7 +28,6 @@ __all__ = [
     "default_workflow",
     "extract_text",
     "filter_bot",
-    "filter_trivial",
     "strip_code",
     "strip_images",
     "strip_diff",

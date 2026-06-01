@@ -135,8 +135,10 @@ Applied per event in order; events that fail a step are dropped. Reads from **ev
 3. **Extract text** from event (comment body, review body, or PR title+body); drop if missing or empty.
 4. **Strip** markdown code blocks, markdown images (e.g. `![alt](url)`), and diff snippet lines (lines starting with `+` or `-`).
 5. **Normalize:** lowercase and collapse whitespace.
-6. **Tokenize** (word-boundary split); **filter:** drop if fewer than 2 tokens.
+6. **Tokenize** (word-boundary split); **filter:** drop if zero tokens remain after stripping. Any surviving word or emoji is retained as a potential signal.
 7. **Output** slim record to **cleaned**: `id`, `cleaned_text`, `repo`, `created_at`, `type`, `author_association`, `tokens`.
+
+**Note:** Short or "trivial" comments (LGTM, thanks, approved, etc.) are **not filtered out**. Any comment with extractable human text is retained — the LLM judge, not a lexical pre-filter, determines whether a comment carries a conformity signal.
 
 #### Repositories Under Investigation
 API frameworks have a long history of standardized conventions and best practices. In addition, they are strictly governed by their maintainers and community [citation needed], which makes them a natural fit for this study.
@@ -158,32 +160,49 @@ API frameworks have a long history of standardized conventions and best practice
 
 #### Data volume
 
-**Base dataset:** 2024 calendar year (2024-01-01 through 2024-12-31) for all 10 repos.
+**Base dataset:** 2023-01-01 through 2025-12-31 for all 10 repos. Note: `tiangolo/fastapi` data ends at 2024-07-29 due to collection gaps.
 
-**Supplemental data:** hapijs/hapi, koajs/koa, and pallets/flask had insufficient cleaned comments in 2024 alone. Data from 2022–2023 is collected for these repos to supplement the dataset.
+##### Raw Events (from `events` table)
 
-| Repository | Cleaned comments (2024) | Supplemental years |
-|------------|------------------------|--------------------|
-| django/django | 12,565 | — |
-| spring-projects/spring-boot | 8,464 | — |
-| tiangolo/fastapi | 4,243 | — |
-| nestjs/nest | 3,649 | — |
-| fastify/fastify | 3,375 | — |
-| expressjs/express | 3,059 | — |
-| gin-gonic/gin | 1,021 | — |
-| pallets/flask | 450 | 2023 |
-| koajs/koa | 191 | 2022–2023 |
-| hapijs/hapi | 180 | 2022–2023 |
+| Repository | Raw events | Earliest event | Latest event |
+|------------|-----------|----------------|--------------|
+| django/django | 40,344 | 2023-01-01 | 2025-12-31 |
+| spring-projects/spring-boot | 23,511 | 2023-01-01 | 2025-12-31 |
+| nestjs/nest | 17,650 | 2023-01-01 | 2025-12-31 |
+| fastify/fastify | 13,969 | 2023-01-01 | 2025-12-31 |
+| tiangolo/fastapi | 13,534 | 2023-01-01 | 2024-07-29 |
+| expressjs/express | 6,049 | 2023-01-01 | 2025-12-27 |
+| gin-gonic/gin | 3,649 | 2023-01-01 | 2025-12-31 |
+| pallets/flask | 1,759 | 2023-01-01 | 2025-12-29 |
+| koajs/koa | 656 | 2023-01-02 | 2025-11-27 |
+| hapijs/hapi | 496 | 2023-01-03 | 2025-12-10 |
+| **Total** | **121,617** | | |
+
+##### Cleaned Comments (from `cleaned` table)
+
+| Repository | Cleaned comments |
+|------------|-----------------|
+| django/django | 32,257 |
+| spring-projects/spring-boot | 22,400 |
+| nestjs/nest | 12,636 |
+| tiangolo/fastapi | 11,105 |
+| fastify/fastify | 10,247 |
+| expressjs/express | 5,541 |
+| gin-gonic/gin | 2,741 |
+| pallets/flask | 1,581 |
+| koajs/koa | 479 |
+| hapijs/hapi | 458 |
+| **Total** | **99,445** |
 
 #### Data collection
 
 To extract data for a specific date range:
 
 ```bash
-python dataset.py --start-date 2024-01-01 --end-date 2024-12-31 --output-dir ./data/raw
+python dataset.py --start-date 2023-01-01 --end-date 2025-12-31 --output-dir ./data/raw
 ```
 
-This command collected all GitHub events from January 1, 2024 through December 31, 2024 for the 10 repositories under investigation.
+This command collects all GitHub events over the specified date range for the 10 repositories under investigation.
 
 #### Judge Validation (Meta-Evaluation)
 
@@ -486,7 +505,7 @@ Flags for `dataset.py`:
 
 Data are obtained from the public GitHub event stream via GHArchive (https://www.gharchive.org/), which provides hourly archives of the GitHub public API timeline. The collection pipeline requests one hourly file per time slot over the chosen date range. Each archive is a gzipped JSON file containing one JSON object per line; the client filters events *in stream* by repository (owner/name) and by event type, so that only events belonging to the repositories under investigation and to the selected types (e.g., `PullRequestEvent`, `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`) are retained. This reduces memory and disk use while preserving the full payload of each retained event.
 
-All retained events are written to a **single SQLite database** (one file per project, e.g. `events.db`). Deduplication is handled at write time: each event has a unique `id` (GitHub event id). The schema uses two tables, both with columns `id` (primary key) and `event_data` (a JSON blob containing the full event). The **events** table holds the raw, unfiltered (by content) event set. During preprocessing, a second table, **cleaned**, is populated in the same database. The preprocessing step reads from **events**, deduplicates by `id` (keeping the first occurrence), then for each event: drops bot/CI and trivial comments, extracts text, strips code blocks and images and diff snippets, lowercases and tokenizes, drops events with fewer than 2 tokens, and writes slim records (id, cleaned_text, repo, created_at, type, author_association, tokens) to **cleaned**. Thus, SQLite is used both to (1) deduplicate across runs and within the raw stream via `INSERT OR REPLACE` on `id` when appending to **events**, and (2) to separate raw versus cleaned data via the two tables, while keeping a single database file for the entire dataset.
+All retained events are written to a **single SQLite database** (one file per project, e.g. `events.db`). Deduplication is handled at write time: each event has a unique `id` (GitHub event id). The schema uses two tables, both with columns `id` (primary key) and `event_data` (a JSON blob containing the full event). The **events** table holds the raw, unfiltered (by content) event set. During preprocessing, a second table, **cleaned**, is populated in the same database. The preprocessing step reads from **events**, deduplicates by `id` (keeping the first occurrence), then for each event: drops bot/CI actors, extracts text, strips code blocks and images and diff snippets, lowercases and tokenizes, drops events with fewer than 2 tokens, and writes slim records (id, cleaned_text, repo, created_at, type, author_association, tokens) to **cleaned**. Thus, SQLite is used both to (1) deduplicate across runs and within the raw stream via `INSERT OR REPLACE` on `id` when appending to **events**, and (2) to separate raw versus cleaned data via the two tables, while keeping a single database file for the entire dataset.
 
 ---
 

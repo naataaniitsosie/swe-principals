@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional, Callable
 
 from dataset_readers.gharchive.models import GitHubEvent
 
-from preprocessing.filters import is_bot_or_ci, is_trivial_comment
+from preprocessing.filters import is_bot_or_ci
 from preprocessing.text_cleaner import (
     strip_code_blocks,
     strip_diff_snippets,
@@ -45,11 +45,6 @@ def filter_bot(ctx: Context) -> Optional[Context]:
     """Drop events from bot/CI actors."""
     actor = (ctx.event.get("actor") or {})
     return None if is_bot_or_ci(actor) else ctx
-
-
-def filter_trivial(ctx: Context) -> Optional[Context]:
-    """Drop trivial comments (e.g. LGTM, Thanks!)."""
-    return None if is_trivial_comment(ctx.text or "") else ctx
 
 
 def strip_code(ctx: Context) -> Optional[Context]:
@@ -135,17 +130,16 @@ class Workflow:
 
 
 def default_workflow() -> Workflow:
-    """Filter bot/CI, extract text, filter trivial, strip code/images/diff, lowercase, tokenize, drop if < 2 tokens, slim output."""
+    """Filter bot/CI, extract text, strip code/images/diff, lowercase, tokenize, drop if < 2 tokens, slim output."""
     return Workflow([
         filter_bot,
         extract_text,
-        # filter_trivial,
         strip_code,
         strip_images,
         strip_diff,
         normalize_lowercase,
         tokenize_text,
-        lambda ctx: filter_min_tokens(ctx, min_tokens=2),
+        lambda ctx: filter_min_tokens(ctx, min_tokens=1),
         finalize,
         slim_output,
     ])

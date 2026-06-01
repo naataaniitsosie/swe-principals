@@ -69,7 +69,6 @@
 ### Prerequisites
 - **Python 3.10+** (recommend using `miniconda` or `conda`)
 - **SQLite 3** (included with Python)
-- **Conda** (if using the provided environment setup)
 
 ### Step 1: Create and activate the conda environment
 
@@ -88,8 +87,6 @@ This installs: `requests`, `transformers`, `torch`, `ollama`, `openai`, `python-
 
 ### Step 3 (Optional): Install notebook dependencies
 
-If you plan to use the analysis notebooks (exploratory data analysis, statistical summaries, visualizations):
-
 ```bash
 pip install -r requirements-notebooks.txt
 ```
@@ -98,13 +95,11 @@ This adds: `pandas`, `matplotlib`, `jupyter`, `ipykernel`.
 
 ### Step 4 (Optional): Set up Jupyter kernel
 
-To run notebooks in VSCode with the conda environment:
-
 ```bash
 python -m ipykernel install --user --name swe-principals --display-name "Python (swe-principals)"
 ```
 
-Then in VSCode, select **"Python (swe-principals)"** from the kernel dropdown (top right of notebook) and run cells.
+Then select **"Python (swe-principals)"** from the kernel dropdown in VSCode.
 
 ### Environment Variables
 
@@ -114,12 +109,9 @@ Create a `.env` file in the repository root for secrets (e.g., OpenAI API token)
 echo "OPENAI_API_TOKEN=sk-..." > .env
 ```
 
-**Note:** `.env` is listed in `.gitignore`; do not commit it.
+`.env` is listed in `.gitignore` — do not commit it.
 
 ---
-
-## Models and Inference
-
 
 ## Config
 
@@ -128,309 +120,110 @@ All data lives in one directory and one SQLite DB. Edit **`project_config.py`** 
 - **`DATA_DIR`** — directory for raw and cleaned data (default `data/raw`).
 - **`DB_FILENAME`** — SQLite file name (default `events.db`).
 
-Full DB path is `DATA_DIR / DB_FILENAME`. There is no CLI option to choose an output directory; everything uses this single DB.
-
-**Environment file:** On import, `project_config` loads a **`.env`** file from the **repository root** (if present), using `python-dotenv`. Use this for secrets such as **`OPENAI_API_TOKEN`** for the judge—no need to `export` manually. `.env` is listed in `.gitignore`; do not commit secrets.
+Full DB path is `DATA_DIR / DB_FILENAME`. On import, `project_config` loads a `.env` file from the repository root (if present) via `python-dotenv`. Use this for secrets such as `OPENAI_API_TOKEN` — no need to `export` manually.
 
 ---
 
-## Database and table schema
+## Scripts
 
-The DB is a single SQLite file (see **`dataset_readers/gharchive/storage.py`** and **`docs/DB_SCHEMA.md`**).
+Run in order: **1. Extract** → **2. Preprocess** → **3. Sample** → **4. Judge**.
 
-| Table    | Written by        | Purpose |
-|----------|-------------------|--------|
-| **events**  | `dataset.py`      | Raw GitHub events from GHArchive. `id`, `event_data` (full JSON). |
-| **cleaned** | `preprocess.py`   | Normalized: `id`, `cleaned_text`, `tokens` only (no duplication of raw). Join with **events** on `id` for repo, created_at, type, author_association. |
-| **scores**  | `judge.py`        | LLM judge output. One row per (comment_id, model_name): FUN/NSI/INSI/ISI scores and reasoning each (0–3 per [`CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md)). |
+| Step | Script | Input | Output | Docs |
+|------|--------|-------|--------|------|
+| 1. Extract | `python dataset.py` | GHArchive (network) | `events` table | [dataset_readers/README.md](dataset_readers/README.md) |
+| 2. Preprocess | `python preprocess.py` | `events` table | `cleaned` table | [preprocessing/README.md](preprocessing/README.md) |
+| 3. Sample | `python sample.py` | `cleaned` table | `samples` table | [sampling/README.md](sampling/README.md) |
+| 4. Judge | `python judge.py` | `samples` table | `scores` table | [judge/README.md](judge/README.md) |
+| — | `python browse_comments.py` | `cleaned` table | Markdown per repo | — |
+| — | `python browse_scores.py` | `scores` + `cleaned` | stdout inspection | — |
+| — | `notebooks/data_explorer.ipynb` | `events` + `cleaned` | pre-score EDA | [notebooks/README.md](notebooks/README.md) |
+| — | `notebooks/score_analysis.ipynb` | `scores` | score stats + charts | [notebooks/README.md](notebooks/README.md) |
 
-- **events** schema and extraction: **`dataset_readers/gharchive/storage.py`**, **`dataset.py`**.
-- **cleaned** (normalized): **`dataset_readers/gharchive/storage.py`** (`CLEANED_TABLE_SCHEMA`). Written by **`preprocessing/pipeline.py`**; readers JOIN with events for metadata.
-- Reading **cleaned** and writing Markdown per repo: **`browse_comments.py`**. Output files: `DATA_DIR/<owner>_<repo>.md` (e.g. `data/raw/django_django.md`).
-- Inspecting **scores** with comment text (CONFORMITY-style layout): **`browse_scores.py`** (stdout Markdown).
-
----
-
-## Runnable scripts (pipeline)
-
-Run in order: **1. Extract** → **2. Preprocess** → **3. Sample** → **4. Judge**. Optional inspection tools at any point.
-
-| Step | Script | Input | Output |
-|------|--------|--------|--------|
-| 1. Extract | `python dataset.py` | GHArchive (network) | `events` table |
-| 2. Preprocess | `python preprocess.py` | `events` table | `cleaned` table |
-| 3. Sample | `python sample.py` | `cleaned` table | `samples` table |
-| 4. Judge | `python judge.py` | `samples` table | `scores` table |
-| — | `python browse_comments.py` | `cleaned` table | Markdown per repo |
-| — | `notebooks/data_explorer.ipynb` | `events` + `cleaned` | pre-score EDA |
-| — | `python browse_scores.py` | `scores` + `cleaned` | stdout inspection |
-| — | `notebooks/score_analysis.ipynb` | `scores` | score stats + charts |
-
-**Chaining:**
+**Quick chain:**
 ```bash
-python dataset.py --start-date 2024-01-01 --end-date 2024-01-01
+python dataset.py --start-date 2023-01-01 --end-date 2025-12-31
 python preprocess.py
 python sample.py
 python judge.py
 ```
 
----
+For long extraction runs, wrap with `caffeinate` to prevent macOS sleep:
+```bash
+caffeinate python dataset.py --start-date 2023-01-01 --end-date 2025-12-31
+```
 
-### 1. Data extraction (`dataset.py`)
+### 1. Extract (`dataset.py`)
 
-Extract PR events from GHArchive for all repositories under investigation (see CONFORMITY.md). Default: all 10 repos; optional date range. Writes to the single DB in config `DATA_DIR`.
+Pulls GitHub events from GHArchive for all 10 repositories and writes raw JSON blobs to the `events` table. See [dataset_readers/README.md](dataset_readers/README.md) for flags, reader architecture, and the BigQuery decision log.
 
 ```bash
-python dataset.py
-python dataset.py --start-date 2024-01-01 --end-date 2024-01-01
+python dataset.py --start-date 2023-01-01 --end-date 2025-12-31
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--dataset-reader`, `-r` | `gharchive` | Reader to use |
 | `--start-date` | `2024-02-01` | Start date (YYYY-MM-DD) |
-| `--end-date` | `2024-02-02` | End date (YYYY-MM-DD) |
+| `--end-date` | `2024-02-02` | End date (YYYY-MM-DD, inclusive) |
 
-Output is a single SQLite file `events.db` with an **events** table (see [Database and table schema](#database-and-table-schema)).
+### 2. Preprocess (`preprocess.py`)
 
-**Stats with sqlite3** (default path `data/raw/events.db`):
-
-```bash
-# Total rows
-sqlite3 data/raw/events.db "SELECT COUNT(*) FROM events;"
-
-# Rows per repo (raw: repo in event_data.repo.name)
-sqlite3 data/raw/events.db "SELECT json_extract(event_data, '$.repo.name'), COUNT(*) FROM events GROUP BY 1 ORDER BY 1;"
-
-# Total and unique by id
-sqlite3 data/raw/events.db "SELECT COUNT(*) AS total, COUNT(DISTINCT id) AS unique_ids FROM events;"
-
-# Cleaned table (normalized): total and per-repo (join events for repo)
-sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
-sqlite3 data/raw/events.db "SELECT json_extract(e.event_data, '$.repo.name'), COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 1;"
-```
-
----
-
-### 2. Preprocess data (`preprocess.py`)
-
-Preprocess the single SQLite DB produced by `dataset.py`. Reads **events**, dedupes by event `id` (keep first), then per event: drop bot/CI and trivial comments, extract text, strip code blocks and images and diff snippets, lowercase and tokenize, drop if fewer than 2 tokens; writes normalized rows to **cleaned** (id, cleaned_text, tokens only; see [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.md](docs/DB_SCHEMA.md)). No CLI options. Details: [CONFORMITY.md § Preprocessing](papers/CONFORMITY.md) and `preprocessing/workflow.py` (`default_workflow`).
+Cleans `events` → `cleaned`: dedupes by ID, drops bot/CI actors, strips code blocks / images / diff lines, lowercases, tokenizes, drops rows with fewer than 2 tokens. No CLI flags. See [preprocessing/README.md](preprocessing/README.md) for all cleaning steps, drop rules, and how to extend the workflow.
 
 ```bash
 python preprocess.py
 ```
 
-***Stats with sqlite3***:
-```bash
-# Cleaned: total rows
-sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
-
-# Cleaned + events: by event type and by repo (metadata in events)
-sqlite3 data/raw/events.db "SELECT json_extract(e.event_data, '$.type'), COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 2 DESC;"
-sqlite3 data/raw/events.db "SELECT json_extract(e.event_data, '$.repo.name') AS repo, COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 1;"
-sqlite3 data/raw/events.db "SELECT date(json_extract(e.event_data, '$.created_at')), COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 1;"
-```
-
----
-
-#### (Optional) Browse comments (Markdown per repo) (`browse_comments.py`)
-
-Reads **cleaned** via JOIN with **events** (normalized schema) and writes one Markdown file per repo under `DATA_DIR`, organized by date (e.g. `data/raw/django_django.md`). Output is always fresh: overwrites existing files and removes any repo `.md` files not in the current run. No CLI options; uses `project_config` for DB and output path.
-
-```bash
-python browse_comments.py
-```
-
-See [Database and table schema](#database-and-table-schema) and [docs/DB_SCHEMA.md](docs/DB_SCHEMA.md).
-
----
-
 ### 3. Sample (`sample.py`)
 
-Draws a deterministic stratified sample from **cleaned** and writes selected IDs to **samples**. Strata are `repo × event_type`; each stratum gets a minimum of 25 and a maximum of 50 comments, with per-stratum seeding for reproducibility. Re-running drops and recreates **samples** (idempotent). See [`sampling/README.md`](sampling/README.md) for full design rationale.
+Draws a deterministic stratified sample from `cleaned` into `samples`. Strata: `repo × event_type`; floor 25 / cap 50 per stratum; per-stratum seeding. Re-running drops and recreates `samples`. See [sampling/README.md](sampling/README.md) for full design rationale and determinism guarantees.
 
 ```bash
 python sample.py
 ```
 
----
+### 4. Judge (`judge.py`)
 
-### 4. Judge (LLM scoring) (`judge.py`)
-
-Scores sampled PR comments using the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): **FUN, NSI, INSI, and ISI** (each with reasoning + 0–3 score). Backends: **Ollama** (local) or **OpenAI** (`--backend openai`, set **`OPENAI_API_TOKEN`** in a **`.env`** file at the repo root or in the environment—[`project_config.py`](project_config.py) loads `.env` on import). Reads **samples** (joined with **cleaned** and **events**), writes **scores**; dedupe by `(comment_id, model_name)`. See [judge/README.md](judge/README.md).
+Scores sampled comments via Ollama (local) or OpenAI. Reads `samples`, writes `scores`. See [judge/README.md](judge/README.md) for the full flag reference, model list, and rubric details.
 
 ```bash
-python judge.py
 python judge.py --model gemma4-e4b --limit 10
-python judge.py --model starcoder2-3b --limit 10
-python judge.py --backend openai --limit 5
-python judge.py --backend openai --model gpt-5.4-mini --limit 5
-python judge.py --skip-existing
+python judge.py --backend openai --model gpt-5.4-mini --skip-existing
 ```
-
-| Flag | Default | Description |
-|------|---------|--------------|
-| `--backend`, `-b` | `ollama` | `ollama` or `openai`. |
-| `--model`, `-m` | backend-specific | Ollama supported name / tag (`gemma4-e4b`, `phi4`, `qwen3-coder`, `starcoder2-3b`, `starcoder2`, `granite-code`), or OpenAI model id. |
-| `--limit`, `-n` | none | Max comments to score (for testing). |
-| `--skip-existing` | off | Skip comments already scored for this model. |
-| `--db` | `project_config` | Path to SQLite DB (default: `data/raw/events.db`). |
-| `--repo`, `-r` | all repos | Restrict to one repo (`owner/name`). |
-
-#### Clear all LLM scores (`scores` table) — **dangerous**
-
-> **Warning — destructive operation:** This deletes the entire **`scores`** table and **all** judge output: every row for **every** model and comment. There is **no** undo. **`events`** and **`cleaned`** are not modified. Only do this when you intentionally need a full reset (e.g. new rubric, bad batch, schema change, or re-scoring everything from scratch).
-
-Use the same DB path as in [`project_config.py`](project_config.py) (`DATA_DIR` / `DB_FILENAME`, default `data/raw/events.db`), or the path you pass to `python judge.py --db`.
-
-```bash
-sqlite3 data/raw/events.db "DROP TABLE IF EXISTS scores;"
-```
-
-The next run of `python judge.py` will recreate `scores` on first write (empty until rows are inserted). To re-score all comments, run without `--skip-existing` (or omit prior rows naturally if the table was empty).
-
----
-
-#### Browse scores (`browse_scores.py`)
-
-Prints **cleaned comment text** plus **FUN / NSI / INSI / ISI** scores and reasoning in a layout aligned with [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (Input, Tags, per-dimension scores). Joins **scores**, **cleaned**, and **events**. **`--model`** must match `scores.model_name` exactly (same string the judge stored—use `SELECT DISTINCT model_name FROM scores;` to list).
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model`, `-m` | (required) | Model id as stored in `scores`. |
-| `--sample-n`, `-n` | `20` | Random sample size (ignored if `--all` or `--comment-id`). |
-| `--all` | off | Print every row for this model (`ORDER BY comment_id`). |
-| `--comment-id`, `-c` | none | Single comment id only. |
-| `--db` | `project_config` | SQLite path. |
+| `--backend`, `-b` | `ollama` | `ollama` or `openai` |
+| `--model`, `-m` | backend default | Model name or tag |
+| `--limit`, `-n` | none | Max comments to score |
+| `--skip-existing` | off | Skip already-scored comments for this model |
+| `--db` | `project_config` | Path to SQLite DB |
+| `--repo`, `-r` | all | Restrict to one repo (`owner/name`) |
 
-**Chaining (after `judge.py`):**
-
-Ollama (full model tag in `scores.model_name`):
+### Browse (`browse_comments.py`, `browse_scores.py`)
 
 ```bash
-python judge.py --model gemma4-e4b --limit 200
-python browse_scores.py --model gemma4:e4b --sample-n 15
-python browse_scores.py --model gemma4:e4b --comment-id "<event_id>"
+# Write one Markdown file per repo to DATA_DIR (no flags)
+python browse_comments.py
+
+# Print scored comments to stdout (--model must match scores.model_name exactly)
+python browse_scores.py --model gpt-5.4-mini --sample-n 15
 python browse_scores.py --model gemma4:e4b --all > sample_scores.md
 ```
 
-OpenAI (default API model is **`gpt-5.4-mini`**; same string is stored in `scores` as `model_name`):
-
-```bash
-python judge.py --backend openai --limit 200
-python judge.py --backend openai --limit 400 --model gpt-5.4-mini --skip-existing --repo expressjs/express
-python browse_scores.py --model gpt-5.4-mini --sample-n 15
-python browse_scores.py --model gpt-5.4-mini --all > sample_scores_gptmini.md
-```
+`browse_scores.py` flags: `--model` (required), `--sample-n` (default 20), `--all`, `--comment-id`, `--db`.
 
 ---
 
-## SQLite queries
-**List all scores that have a total score of 0. Include comment text sort by date.**
+## Database
 
-```bash
-sqlite3 -header data/raw/events.db "
-SELECT comment_id, created_at, model_name, fun_score, nsi_score, insi_score, isi_score, cleaned_text
-FROM scores
-INNER JOIN cleaned ON cleaned.id = scores.comment_id
-WHERE fun_score + nsi_score + insi_score + isi_score = 0
-ORDER BY created_at;"
-```
-or if a count is needed:
-```bash
-sqlite3 -header data/raw/events.db "SELECT COUNT(*) AS n
-FROM scores
-INNER JOIN cleaned ON cleaned.id = scores.comment_id
-WHERE fun_score + nsi_score + insi_score + isi_score = 0;"
-```
+Single SQLite file at `DATA_DIR/DB_FILENAME` (default `data/raw/events.db`). Full schema: [docs/DB_SCHEMA.md](docs/DB_SCHEMA.md).
 
-**List all the score will a non-zero total score. Include comment text.**
-```bash
-sqlite3 -header data/raw/events.db "
-SELECT comment_id, created_at,model_name, fun_score, nsi_score, insi_score, isi_score, cleaned_text
-FROM scores
-INNER JOIN cleaned ON cleaned.id = scores.comment_id
-WHERE fun_score + nsi_score + insi_score + isi_score > 0
-ORDER BY created_at;"
-```
-or if a count is needed:
-```bash
-sqlite3 -header data/raw/events.db "SELECT COUNT(*) AS n
-FROM scores
-INNER JOIN cleaned ON cleaned.id = scores.comment_id
-WHERE fun_score + nsi_score + insi_score + isi_score > 0;"
-```
+| Table | Written by | Contents |
+|-------|-----------|---------|
+| `events` | `dataset.py` | Raw GHArchive events: `id`, `event_data` (full JSON blob) |
+| `cleaned` | `preprocess.py` | `id`, `cleaned_text`, `tokens` — join with `events` on `id` for repo/date/type metadata |
+| `samples` | `sample.py` | Selected IDs: `id`, `repo`, `event_type`, `stratum_key` |
+| `scores` | `judge.py` | One row per `(comment_id, model_name)`: FUN/NSI/INSI/ISI score + reasoning each |
 
-## FAQ: questions and SQLite answers
-
-The judge only scores rows in **cleaned**; **scores** stores one row per **(comment_id, model_name)**. Replace `data/raw/events.db` if you use another path (`project_config`).
-
-**How many comments have and have not been scored?**
-
-Here “scored” means the comment has **at least one** row in **scores** (any model). “Not scored” means a **cleaned** row with **no** matching `comment_id` in **scores**.
-
-```bash
-sqlite3 -header data/raw/events.db "SELECT
-  (SELECT COUNT(*) FROM cleaned) AS cleaned_total,
-  (SELECT COUNT(DISTINCT comment_id) FROM scores) AS cleaned_with_any_score,
-  (SELECT COUNT(*) FROM cleaned c WHERE NOT EXISTS (
-    SELECT 1 FROM scores s WHERE s.comment_id = c.id
-  )) AS cleaned_never_scored;"
-```
-
-**How many scores has each model performed?**
-
-Each row in **scores** is one judged comment for that model.
-
-```bash
-sqlite3 data/raw/events.db "SELECT model_name, COUNT(*) AS n_scores FROM scores GROUP BY model_name ORDER BY model_name;"
-```
-
-**How often does each score (0–3) appear for FUN, NSI, INSI, and ISI?**
-
-One query: counts per rubric dimension and per score value (every row in **scores** contributes once to each dimension).
-
-```bash
-sqlite3 -header -column data/raw/events.db "
-SELECT 'FUN' AS rubric, fun_score AS score, COUNT(*) AS n
-FROM scores GROUP BY fun_score
-UNION ALL
-SELECT 'NSI', nsi_score, COUNT(*) FROM scores GROUP BY nsi_score
-UNION ALL
-SELECT 'INSI', insi_score, COUNT(*) FROM scores GROUP BY insi_score
-UNION ALL
-SELECT 'ISI', isi_score, COUNT(*) FROM scores GROUP BY isi_score
-ORDER BY rubric, score;"
-```
-
-**What single score (0–3) is most common, pooling all four dimensions?**
-
-```bash
-sqlite3 -header data/raw/events.db "
-SELECT score, COUNT(*) AS n FROM (
-  SELECT fun_score AS score FROM scores
-  UNION ALL SELECT nsi_score FROM scores
-  UNION ALL SELECT insi_score FROM scores
-  UNION ALL SELECT isi_score FROM scores
-)
-GROUP BY score
-ORDER BY n DESC, score DESC
-LIMIT 1;"
-```
-
-**How many non-zero scores are there for each dimension?**
-
-```bash
-sqlite3 -header data/raw/events.db "
-SELECT 'FUN' AS rubric, COUNT(*) AS n
-FROM scores WHERE fun_score > 0
-UNION ALL
-SELECT 'NSI', COUNT(*) FROM scores WHERE nsi_score > 0
-UNION ALL
-SELECT 'INSI', COUNT(*) FROM scores WHERE insi_score > 0
-UNION ALL
-SELECT 'ISI', COUNT(*) FROM scores WHERE isi_score > 0
-ORDER BY rubric;"
-```
-
----
+For common queries (score distributions, coverage checks, per-repo breakdowns), see [docs/QUERIES.md](docs/QUERIES.md).
