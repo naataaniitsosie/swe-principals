@@ -196,13 +196,7 @@ API frameworks have a long history of standardized conventions and best practice
 
 #### Data collection
 
-To extract data for a specific date range:
-
-```bash
-python dataset.py --start-date 2023-01-01 --end-date 2025-12-31 --output-dir ./data/raw
-```
-
-This command collects all GitHub events over the specified date range for the 10 repositories under investigation.
+Data is extracted via the four-step pipeline documented in [`README.md`](../../README.md). See that file for CLI flags and per-step details.
 
 #### Judge Validation (Meta-Evaluation)
 
