@@ -35,15 +35,29 @@ preprocessing/
 ## How to Run
 
 ```bash
-python preprocess.py
+python preprocess.py [--min-tokens N]
 ```
 
-No CLI flags. The DB path is derived from `project_config.DATA_DIR` (default: `data/raw/events.db`). Running `preprocess.py` **drops and recreates** the `cleaned` table. This is intentional: preprocessing is a deterministic function of `events`, so re-running is always safe. If you need the previous `cleaned` table, back up the DB first.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--min-tokens N` | `1` | Drop events with fewer than N tokens after cleaning. `1` retains any non-empty text; higher values require more content. |
+
+The DB path is derived from `project_config.DATA_DIR` (default: `data/raw/events.db`). Running `preprocess.py` **drops and recreates** the `cleaned` table. This is intentional: preprocessing is a deterministic function of `events`, so re-running is always safe. If you need the previous `cleaned` table, back up the DB first.
+
+**Common invocations:**
+
+```bash
+# Retain all non-empty text (default — any single token is a signal)
+python preprocess.py
+
+# Require at least 5 tokens (filters out very short comments)
+python preprocess.py --min-tokens 5
+```
 
 For long runs (large `events` table), wrap with `caffeinate` to prevent macOS sleep:
 
 ```bash
-caffeinate python preprocess.py
+caffeinate python preprocess.py --min-tokens 5
 ```
 
 ---
@@ -61,7 +75,7 @@ Steps are applied in order by `default_workflow()` in `workflow.py`. An event is
 | 5 | `strip_diff` | _(no drop)_ — removes lines starting with `+` or `-` (diff snippet lines) |
 | 6 | `normalize_lowercase` | _(no drop)_ — lowercases text and collapses whitespace |
 | 7 | `tokenize_text` | _(no drop)_ — splits into words via `\w+` regex |
-| 8 | `filter_min_tokens` | Fewer than **1 token** after cleaning (i.e., text is empty after stripping) |
+| 8 | `filter_min_tokens` | Fewer than **`--min-tokens`** tokens after cleaning (default: **1** — drop only if text is empty after stripping) |
 | 9 | `finalize` | _(no drop)_ — writes `cleaned_text` and `tokens` back into the event context |
 | 10 | `slim_output` | _(no drop)_ — retains only the fields written to `cleaned` (see [Output Schema](#output-schema)) |
 
@@ -154,7 +168,7 @@ pipeline.run()
 ## Making Changes: Rules
 
 1. **Adding a bot/CI pattern:** Add to `BOT_CI_PATTERNS` in `filters.py`. Re-run `preprocess.py` to regenerate `cleaned`. There is no migration path — the table is always rebuilt from `events`.
-2. **Changing the minimum token threshold:** Update the `min_tokens=1` argument in `default_workflow()` and note the change here. Re-run `preprocess.py`.
+2. **Changing the minimum token threshold:** Pass `--min-tokens N` to `preprocess.py`. No code change required.
 3. **Re-enabling `filter_trivial`:** Uncomment the line in `default_workflow()`. Understand that this will meaningfully reduce the `cleaned` row count (LGTM/thanks comments are common). Re-run `preprocess.py` and `sample.py` to keep `samples` in sync.
 4. **Changing the `cleaned` schema:** Update `_create_cleaned_table` in `dataset_readers/gharchive/storage.py` and the Output Schema table above. `sampling/storage.py` and `judge.py` query `cleaned` — check them for breakage.
 5. **Do not add raw event fields to `cleaned`:** The full payload is always available via `events.event_data`; duplicating it in `cleaned` wastes disk and creates silent staleness.

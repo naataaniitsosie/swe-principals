@@ -59,9 +59,9 @@ def clean_db(workflow: Workflow, db_path: Path) -> tuple[int, int, int]:
 class CleanerPipeline:
     """Run preprocessing on the SQLite DB in data_dir (events.db); writes cleaned table to same DB."""
 
-    def __init__(self, data_dir: str, workflow: Optional[Workflow] = None):
+    def __init__(self, data_dir: str, workflow: Optional[Workflow] = None, min_tokens: int = 1):
         self.data_dir = Path(data_dir)
-        self.workflow = workflow if workflow is not None else default_workflow()
+        self.workflow = workflow if workflow is not None else default_workflow(min_tokens=min_tokens)
 
     def run(self) -> List[tuple[str, int, int, int]]:
         """Read events from data_dir/events.db, run workflow, write cleaned table. Returns list of (filename, read_count, duplicate_count, written_count)."""

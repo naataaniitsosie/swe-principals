@@ -168,10 +168,11 @@ python dataset.py --start-date 2023-01-01 --end-date 2025-12-31
 
 ### 2. Preprocess (`preprocess.py`)
 
-Cleans `events` → `cleaned`: dedupes by ID, drops bot/CI actors, strips code blocks / images / diff lines, lowercases, tokenizes, drops rows with fewer than 2 tokens. No CLI flags. See [preprocessing/README.md](preprocessing/README.md) for all cleaning steps, drop rules, and how to extend the workflow.
+Cleans `events` → `cleaned`: dedupes by ID, drops bot/CI actors, strips code blocks / images / diff lines, lowercases, tokenizes, retains any event with at least `--min-tokens` tokens (default: 1 — any non-empty text). See [preprocessing/README.md](preprocessing/README.md) for all cleaning steps, drop rules, and how to extend the workflow.
 
 ```bash
-python preprocess.py
+python preprocess.py                  # retain all non-empty text (default)
+python preprocess.py --min-tokens 5  # require at least 5 tokens
 ```
 
 ### 3. Sample (`sample.py`)

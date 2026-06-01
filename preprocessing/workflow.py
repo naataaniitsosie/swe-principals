@@ -129,8 +129,8 @@ class Workflow:
         return Workflow(self.steps + list(steps))
 
 
-def default_workflow() -> Workflow:
-    """Filter bot/CI, extract text, strip code/images/diff, lowercase, tokenize, drop if < 2 tokens, slim output."""
+def default_workflow(min_tokens: int = 1) -> Workflow:
+    """Filter bot/CI, extract text, strip code/images/diff, lowercase, tokenize, drop if < min_tokens, slim output."""
     return Workflow([
         filter_bot,
         extract_text,
@@ -139,7 +139,7 @@ def default_workflow() -> Workflow:
         strip_diff,
         normalize_lowercase,
         tokenize_text,
-        lambda ctx: filter_min_tokens(ctx, min_tokens=1),
+        lambda ctx: filter_min_tokens(ctx, min_tokens=min_tokens),
         finalize,
         slim_output,
     ])

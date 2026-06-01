@@ -1,7 +1,10 @@
 """
 Preprocess PR events: read from events table, run filtering and text cleaning, write cleaned table.
-Steps: dedupe by id, drop bot/CI and trivial comments, extract text, strip code/images/diff, lowercase and tokenize, drop if < 2 tokens; output slim records (id, cleaned_text, repo, created_at, type, author_association, tokens). DB path from project_config (DATA_DIR / DB_FILENAME). No CLI options.
+Steps: dedupe by id, drop bot/CI actors, extract text, strip code/images/diff, lowercase and tokenize,
+drop if fewer than --min-tokens tokens; output slim records (id, cleaned_text, tokens).
+DB path from project_config (DATA_DIR / DB_FILENAME).
 """
+import argparse
 import logging
 from pathlib import Path
 
@@ -16,12 +19,22 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Preprocess GHArchive events into the cleaned table.")
+    parser.add_argument(
+        "--min-tokens",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Drop events with fewer than N tokens after cleaning (default: 1 — retain any non-empty text).",
+    )
+    args = parser.parse_args()
+
     data_dir = Path(DATA_DIR)
     if not data_dir.is_dir():
         logger.error("Data directory does not exist: %s (set DATA_DIR in project_config.py)", data_dir)
         return 1
 
-    pipeline = CleanerPipeline(str(data_dir))
+    pipeline = CleanerPipeline(str(data_dir), min_tokens=args.min_tokens)
     results = pipeline.run()
 
     if not results:
