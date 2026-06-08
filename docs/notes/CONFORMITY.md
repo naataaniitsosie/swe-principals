@@ -14,6 +14,7 @@
   - [Scoring](#scoring)
   - [Objective 1 — LLM-Based Conformity Detection](#objective-1--llm-based-conformity-detection)
     - [LLM Coding Scheme (Detection System Prompt)](#llm-coding-scheme-detection-system-prompt)
+    - [Judge Validation (Meta-Evaluation)](#judge-validation-meta-evaluation)
   - [Objective 2 — Human Conformity Detection](#objective-2---human-conformity-detection)
   - [Objective 3 — Automatic, Non-LLM Conformity Detection](#objective-3--automatic-non-llm-conformity-detection)
   - [Possible Objective 4 — Model Comparison & Conformity Amplification](#objective-possible-phase-3-idea--model-comparison--conformity-amplification-if-is-successful)
@@ -185,10 +186,6 @@ API frameworks have a long history of standardized conventions and best practice
 
 Data is extracted via the four-step pipeline documented in [`README.md`](../../README.md). See that file for CLI flags and per-step details.
 
-#### Judge Validation (Meta-Evaluation)
-
-Before using LLM judge outputs for analysis, we validate the scoring rubric through **preference-based meta-evaluation**. See [`docs/notes/META_EVALUATION.md`](META_EVALUATION.md) for methodology and implementation.
-
 #### Stratified Sampling
 
 Before scoring, a stratified sample is drawn per repository. Stratification is by **repository × event type** (PR type), ensuring that rare but high-signal event types (e.g., `PullRequestReviewCommentEvent`) are not drowned out by the more numerous `IssueCommentEvent` rows.
@@ -305,6 +302,12 @@ Weights (α, β) will be determined empirically during validation.
 
 #### LLM Coding Scheme (Detection System Prompt)
 See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
+
+#### Judge Validation (Meta-Evaluation)
+
+> **Not yet implemented — this step is critical and must be completed before judge outputs are used for analysis.**
+
+Before using LLM judge outputs for analysis, we validate the scoring rubric through **preference-based meta-evaluation**. See [`docs/notes/META_EVALUATION.md`](META_EVALUATION.md) for methodology and implementation.
 
 ---
 
