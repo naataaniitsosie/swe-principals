@@ -9,17 +9,15 @@
   - [Culture as Correctness](#culture-as-correctness)
   - [Research Questions (RQs)](#research-questions-rqs)
 - [Methodology](#methodology)
-  - [Tasks](#tasks)
   - [Goal](#goal)
   - [Dataset](#dataset)
   - [Scoring](#scoring)
-    - [Human Coding Scheme (The "Codebook")](#human-coding-scheme-the-codebook)
-    - [LLM Coding Scheme (System Prompt)](#llm-coding-scheme-system-prompt-start)
   - [Phase 1 — LLM-Based Conformity Detection](#phase-1--llm-based-conformity-detection)
-  - [Phase 2 — Surface-Level Conformity Detection (No LLM)](#phase-2--surface-level-conformity-detection-no-llm)
-  - [Phase 3 — Model Comparison & Conformity Amplification](#phase-3--model-comparison--conformity-amplification-if-phase-1-is-successful)
-  - [Models](#models)
-  - [Existing Code Artifacts](#existing-code-artifacts)
+    - [LLM Coding Scheme (Detection System Prompt)](#llm-coding-scheme-detection-system-prompt)
+  - [Phase 2 — Human Coding Scheme (The "Codebook")](#phase-2---human-coding-scheme-the-codebook)
+  - [Phase 2 — Surface-Level Conformity Detection (Automatic, No LLM)](#phase-2--surface-level-conformity-detection-automatic-no-llm)
+  - [Possible Phase 3 Idea — Model Comparison & Conformity Amplification](#possible-phase-3-idea--model-comparison--conformity-amplification-if-phase-2-is-successful)
+    - [Existing Code Artifacts](#existing-code-artifacts)
 - [Results](#results)
 - [Discussion](#discussion)
 - [Future Work](#future-work)
@@ -216,7 +214,57 @@ Before scoring, a stratified sample is drawn per repository. Stratification is b
 The sample is stored in a `samples` table in the database; the judge operates over this table rather than all of `cleaned`. Each row is labeled by track so the correct scoring prompt is applied.
 
 ### Scoring
+#### Two Goals: Detection vs. Contextual Scoring
 
+**1. Detection (current focus)**
+Score each comment in isolation — no surrounding PR thread, no repo history, no author context. The LLM reads one comment and returns a JSON object with independent FUN / NSI / INSI / ISI scores. This is what `judge.py` and `papers/publication1/CONFORMITY_SYSTEM_PROMPT.md` implement today.
+
+**2. Contextual Scoring (not yet designed or implemented)**
+Use the materialized `repo` and `pr_number` columns (added to the `cleaned` table) to group comments by PR thread or repository and reason about conformity *in context* — e.g., does a reviewer soften or harden their language as a PR progresses? Does conformity pressure vary by repo culture? One hypothesis is that contextual access to the surrounding PR thread would let us detect instances of [the Masquerade](#scoring) — where a reviewer cloaks a social norm as a functional requirement — that single-comment detection misses because the mismatch only becomes visible across the thread. The data infrastructure for this now exists, but the method and prompt design do not. This is a candidate for a second study.
+
+---
+
+### Objective 1 — LLM-Based Conformity Detection
+
+#### Objective (Detection)
+Capture implicit and contextual conformity signals not detectable via lexical methods, on a per-comment basis.
+
+#### Procedure
+In this phase, the LLM annotates the dataset using the scoring prompts defined in the [Scoring](#scoring) section. Each comment is evaluated according to its track:
+
+- **Track 1** (reviewer event types: `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`): scored using the CONFORMITY prompt (FUN / NSI / INSI / ISI).
+- **Track 2** (contributor event type: `PullRequestEvent`): scored using the Contributor Conformity Signaling prompt.
+
+The model outputs a JSON object with independent reasoning and a 0–3 score per dimension.
+
+#### LLM Conformity Score
+The LLM provides four independent dimensions per comment, each with a 0–3 score and a reasoning field (see [`judge/README.md`](../../judge/README.md) for the full schema):
+
+| Field | Range | Description |
+|-------|-------|-------------|
+| `fun_score` / `fun_reasoning` | 0–3 | Functional / hard constraint |
+| `nsi_score` / `nsi_reasoning` | 0–3 | Explicit normative social influence |
+| `insi_score` / `insi_reasoning` | 0–3 | Implicit normative social influence |
+| `isi_score` / `isi_reasoning` | 0–3 | Informational / expert influence |
+
+#### Combined Conformity Score
+To integrate lexical and contextual signals, a combined score is calculated:
+
+```
+ConformityScore =
+    α * SurfaceConformityScore +
+    β * (nsi_score + isi_score)
+```
+
+Weights (α, β) will be determined empirically during validation.
+
+#### LLM Coding Scheme (Detection System Prompt)
+See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
+
+---
+
+
+### Objective 2 - Human Conformity Detection
 #### Human Coding Scheme (The "Codebook")
 **Annotator Instructions**
 
@@ -300,10 +348,8 @@ ISI Score: 0
 ISI Reasoning: No documentation, facts, or logical arguments are provided.
 ```
 
-#### LLM Coding Scheme (System Prompt)
-See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
 
-### Phase 2 — Surface-Level Conformity Detection (No LLM)
+### Objective 3 — Automatic, Non-LLM Conformity Detection
 
 #### Objective
 Establish an existence proof that linguistic markers of norm enforcement are present in PR review discourse using interpretable lexical features.
@@ -391,50 +437,7 @@ Interpretation:
 
 ---
 
-### Phase 1 — LLM-Based Conformity Detection
-
-#### Two Goals: Detection vs. Contextual Scoring
-
-Phase 1 has two distinct goals that should not be conflated:
-
-**1. Detection (current focus)**
-Score each comment in isolation — no surrounding PR thread, no repo history, no author context. The LLM reads one comment and returns a JSON object with independent FUN / NSI / INSI / ISI scores. This is what `judge.py` and `papers/publication1/CONFORMITY_SYSTEM_PROMPT.md` implement today.
-
-**2. Contextual Scoring (not yet designed — possible Phase 2)**
-Use the materialized `repo` and `pr_number` columns (added to the `cleaned` table) to group comments by PR thread or repository and reason about conformity *in context* — e.g., does a reviewer soften or harden their language as a PR progresses? Does conformity pressure vary by repo culture? One hypothesis is that contextual access to the surrounding PR thread would let us detect instances of [the Masquerade](#scoring) — where a reviewer cloaks a social norm as a functional requirement — that single-comment detection misses because the mismatch only becomes visible across the thread. The data infrastructure for this now exists, but the method and prompt design do not. This is a candidate for a second study.
-
----
-
-#### Objective (Detection)
-Capture implicit and contextual conformity signals not detectable via lexical methods, on a per-comment basis.
-
-#### Procedure
-In this phase, the LLM annotates the dataset using the scoring prompts defined in the [Scoring](#scoring) section. Each comment is evaluated according to its track:
-
-- **Track 1** (reviewer event types: `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`): scored using the CONFORMITY prompt (FUN / NSI / INSI / ISI).
-- **Track 2** (contributor event type: `PullRequestEvent`): scored using the Contributor Conformity Signaling prompt (A-NSI / A-ISI / NVA).
-
-The model outputs a JSON object with independent reasoning and a 0–3 score per dimension.
-
-#### LLM Conformity Score
-The LLM provides two primary metrics per comment:
-- `nsi_score`: 0–3
-- `isi_score`: 0–3
-
-#### Combined Conformity Score
-To integrate lexical and contextual signals, a combined score is calculated:
-
-```
-ConformityScore =
-    α * SurfaceConformityScore +
-    β * (nsi_score + isi_score)
-```
-
-Weights (α, β) will be determined empirically during validation.
-
----
-
-### Phase 3 — Model Comparison & Conformity Amplification (If phase 1 is successful)
+### Objective (possible) Phase 3 Idea — Model Comparison & Conformity Amplification (If is successful)
 
 #### Objective
 Test whether code-refined or alignment-tuned LLMs amplify conformity signals relative to baseline models.
