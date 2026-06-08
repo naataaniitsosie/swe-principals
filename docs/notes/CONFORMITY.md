@@ -198,9 +198,70 @@ Before scoring, a stratified sample is drawn per repository. Stratification is b
 **Rough math:**
 - 4 event-type strata × 50 max = **200 comments per repo (ceiling)**
 - 10 repos × 200 = **2,000 comments total (ceiling)**
-- Actual totals will be lower: sparse strata (e.g., `PullRequestReviewEvent` has only 3 rows in gin-gonic/gin, 1 in pallets/flask) cannot reach the 50 cap, so the realized corpus will be somewhat below the ceiling.
+- Actual totals will be lower: sparse strata cannot reach the 50 cap, so the realized corpus will be somewhat below the ceiling.
 
 The sample is stored in a `samples` table in the database; the judge operates over this table rather than all of `cleaned`.
+
+##### Realized Sample (from `samples` table)
+
+**Total comments to score: 1,903**
+
+| Stratum | Sampled |
+|---------|---------|
+| django/django \| IssueCommentEvent | 50 |
+| django/django \| PullRequestEvent | 50 |
+| django/django \| PullRequestReviewCommentEvent | 50 |
+| django/django \| PullRequestReviewEvent | 50 |
+| expressjs/express \| IssueCommentEvent | 50 |
+| expressjs/express \| PullRequestEvent | 50 |
+| expressjs/express \| PullRequestReviewCommentEvent | 50 |
+| expressjs/express \| PullRequestReviewEvent | 50 |
+| fastify/fastify \| IssueCommentEvent | 50 |
+| fastify/fastify \| PullRequestEvent | 50 |
+| fastify/fastify \| PullRequestReviewCommentEvent | 50 |
+| fastify/fastify \| PullRequestReviewEvent | 50 |
+| gin-gonic/gin \| IssueCommentEvent | 50 |
+| gin-gonic/gin \| PullRequestEvent | 50 |
+| gin-gonic/gin \| PullRequestReviewCommentEvent | 50 |
+| gin-gonic/gin \| PullRequestReviewEvent | 50 |
+| hapijs/hapi \| IssueCommentEvent | 50 |
+| hapijs/hapi \| PullRequestEvent | 50 |
+| hapijs/hapi \| PullRequestReviewCommentEvent | **47** |
+| hapijs/hapi \| PullRequestReviewEvent | **30** |
+| koajs/koa \| IssueCommentEvent | 50 |
+| koajs/koa \| PullRequestEvent | 50 |
+| koajs/koa \| PullRequestReviewCommentEvent | **44** |
+| koajs/koa \| PullRequestReviewEvent | **21** |
+| nestjs/nest \| IssueCommentEvent | 50 |
+| nestjs/nest \| PullRequestEvent | 50 |
+| nestjs/nest \| PullRequestReviewCommentEvent | 50 |
+| nestjs/nest \| PullRequestReviewEvent | 50 |
+| pallets/flask \| IssueCommentEvent | 50 |
+| pallets/flask \| PullRequestEvent | 50 |
+| pallets/flask \| PullRequestReviewCommentEvent | 50 |
+| pallets/flask \| PullRequestReviewEvent | **11** |
+| spring-projects/spring-boot \| IssueCommentEvent | 50 |
+| spring-projects/spring-boot \| PullRequestEvent | 50 |
+| spring-projects/spring-boot \| PullRequestReviewCommentEvent | 50 |
+| spring-projects/spring-boot \| PullRequestReviewEvent | 50 |
+| tiangolo/fastapi \| IssueCommentEvent | 50 |
+| tiangolo/fastapi \| PullRequestEvent | 50 |
+| tiangolo/fastapi \| PullRequestReviewCommentEvent | 50 |
+| tiangolo/fastapi \| PullRequestReviewEvent | 50 |
+
+##### Why some strata are below 50
+
+Five strata are bolded above because they drew fewer than 50 comments. This is not a sampling limitation — the sampler exhausted every available row in `cleaned` for those cells. The `cleaned` table simply has fewer than 50 records for those repo × event-type combinations:
+
+| Stratum | Available in `cleaned` | Sampled |
+|---------|------------------------|---------|
+| pallets/flask \| PullRequestReviewEvent | 11 | 11 |
+| koajs/koa \| PullRequestReviewEvent | 21 | 21 |
+| hapijs/hapi \| PullRequestReviewEvent | 30 | 30 |
+| koajs/koa \| PullRequestReviewCommentEvent | 44 | 44 |
+| hapijs/hapi \| PullRequestReviewCommentEvent | 47 | 47 |
+
+`PullRequestReviewEvent` is the sparsest type across the smaller repos because formal review submissions (approve / request changes) are far less frequent than free-form issue comments or inline diff comments. This is a property of the repositories, not the pipeline.
 
 ### Scoring
 #### Two Goals: Detection vs. Contextual Scoring
