@@ -40,6 +40,31 @@ sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned WHERE pr_number IS NULL
 
 ---
 
+## Samples table
+
+```bash
+# Total sampled rows
+sqlite3 data/raw/events.db "SELECT COUNT(*) FROM samples;"
+
+# Count per stratum (repo × event_type)
+sqlite3 -header data/raw/events.db "SELECT stratum_key, COUNT(*) AS n FROM samples GROUP BY stratum_key ORDER BY stratum_key;"
+
+# Count per repo
+sqlite3 -header data/raw/events.db "SELECT repo, COUNT(*) AS n FROM samples GROUP BY repo ORDER BY repo;"
+
+# Count per event_type
+sqlite3 -header data/raw/events.db "SELECT event_type, COUNT(*) AS n FROM samples GROUP BY event_type ORDER BY n DESC;"
+
+# Full scoreable rows — text and metadata joined from cleaned
+sqlite3 -header data/raw/events.db "
+SELECT s.id, s.repo, s.event_type, c.author_association, substr(c.cleaned_text, 1, 80) AS text_preview
+FROM samples s
+INNER JOIN cleaned c ON c.id = s.id
+LIMIT 10;"
+```
+
+---
+
 ## Scores table
 
 **How many comments have and have not been scored?**

@@ -52,6 +52,14 @@ Strata are defined as **`repo × event_type`** cells. With 10 repos and 4 event 
 
 ## Determinism Design
 
+**The sample is fully deterministic.** Given the same `cleaned` table contents, running `sample.py` twice produces the exact same set of selected IDs in the exact same order. No randomness is introduced at runtime. This is achieved through three interlocking guarantees:
+
+1. **Fixed seed per stratum.** Each `repo × event_type` cell is shuffled with a `random.Random` instance seeded from a SHA-256 hash of `"{repo}|{event_type}|{BASE_SEED}"`. The same string always hashes to the same integer, so the same RNG state is reconstructed on every run.
+2. **Sorted stratum iteration.** Strata are processed in sorted order, so the sequence of RNG calls is stable regardless of dict insertion order in the Python runtime.
+3. **Stable input IDs.** `cleaned.id` values come from GitHub event IDs (integers assigned by GitHub), not insertion-order row numbers. Their sorted order is deterministic across runs.
+
+The net result: **the corpus is reproducible by anyone who has the same `cleaned` table and knows `BASE_SEED`**.
+
 ### Storage: ID table, not a view, not a copy
 
 The `samples` table stores only the **selected `id` values** (foreign keys into `cleaned`), plus stratification metadata. Full text is retrieved at query time via a JOIN.
@@ -84,21 +92,6 @@ Within each stratum: `rng = random.Random(stratum_seed(repo, event_type))`, then
 The methodology includes supplemental data for `hapijs/hapi`, `koajs/koa`, and `pallets/flask` (2022–2023 years added after 2024 data proved sparse). If sampling used a single global seed over all rows, adding data for one repo would shift the sample drawn from every other repo. Per-stratum seeding makes each stratum's sample independent: adding rows to the `hapi` × `IssueCommentEvent` stratum cannot change the `django/django` × `IssueCommentEvent` sample. This is the correct property for a reproducible corpus.
 
 **`BASE_SEED` is a global constant in `sampler.py`.** If you change it, every existing `samples` table is invalidated and must be regenerated. Treat it as append-only: document the reason for any change in this README's Decision Log.
-
----
-
-## Track Assignment
-
-Track is derived from `event_type` at query time — it is **not stored** in the `samples` table.
-
-| Event type | Track | Scoring prompt |
-|------------|-------|----------------|
-| `PullRequestReviewEvent` | 1 | `CONFORMITY_SYSTEM_PROMPT.md` |
-| `PullRequestReviewCommentEvent` | 1 | `CONFORMITY_SYSTEM_PROMPT.md` |
-| `IssueCommentEvent` | 1 | `CONFORMITY_SYSTEM_PROMPT.md` |
-| `PullRequestEvent` | 2 | `CONTRIBUTOR_CONFORMITY_SYSTEM_PROMPT.md` |
-
-`judge.py` maps `event_type → prompt` directly; no stored column needed.
 
 ---
 
@@ -147,7 +140,7 @@ Running `sample.py` **drops and recreates** the `samples` table. This is intenti
 1. **Changing `BASE_SEED`:** Document the reason in the Decision Log below. Any existing `samples` table must be regenerated. Coordinate with anyone who has already scored rows from the old sample.
 2. **Changing floor/cap numbers:** Update both `sampler.py` and the table in [CONFORMITY.md](../docs/notes/CONFORMITY.md#stratified-sampling) to stay in sync with the paper's methodology section.
 3. **Changing the `samples` schema:** Update `storage.py` *and* the schema block above. The judge's query (in `judge/`) will need updating too.
-4. **Adding a new event type:** Add a row to the Track Assignment table above and update the `event_type → prompt` mapping in `judge.py`.
+4. **Adding a new event type:** Add it to `DEFAULT_EVENT_TYPES` in `dataset_readers/gharchive/config.py` and to the `EventType` enum in `dataset_readers/gharchive/models.py`. The judge handles prompt selection independently.
 5. **Do not add `cleaned_text` or `tokens` to `samples`:** See the storage rationale above.
 
 ---

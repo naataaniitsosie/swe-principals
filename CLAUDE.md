@@ -18,13 +18,6 @@ This repository studies **conformity in software engineering** by analyzing GitH
 4. `judge.py` — Score sampled comments with an LLM (Ollama or OpenAI); reads from `samples`, not `cleaned`
 5. `browse_comments.py` / `browse_scores.py` — Inspect data and scores
 
-## Two Scoring Tracks
-
-| Track | Event types | Prompt | Dimensions |
-|-------|------------|--------|------------|
-| Track 1 — Reviewer | `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent` | `papers/publication1/CONFORMITY_SYSTEM_PROMPT.md` | FUN / NSI / INSI / ISI |
-| Track 2 — Contributor | `PullRequestEvent` | `papers/publication1/CONTRIBUTOR_CONFORMITY_SYSTEM_PROMPT.md` | A-NSI / A-ISI |
-
 ## Database
 
 Single SQLite file: `data/raw/events.db`. Tables: `events`, `cleaned`, `scores`. Schema: [`docs/DB_SCHEMA.md`](docs/DB_SCHEMA.md).

@@ -12,11 +12,11 @@
   - [Goal](#goal)
   - [Dataset](#dataset)
   - [Scoring](#scoring)
-  - [Phase 1 — LLM-Based Conformity Detection](#phase-1--llm-based-conformity-detection)
+  - [Objective 1 — LLM-Based Conformity Detection](#objective-1--llm-based-conformity-detection)
     - [LLM Coding Scheme (Detection System Prompt)](#llm-coding-scheme-detection-system-prompt)
-  - [Phase 2 — Human Coding Scheme (The "Codebook")](#phase-2---human-coding-scheme-the-codebook)
-  - [Phase 2 — Surface-Level Conformity Detection (Automatic, No LLM)](#phase-2--surface-level-conformity-detection-automatic-no-llm)
-  - [Possible Phase 3 Idea — Model Comparison & Conformity Amplification](#possible-phase-3-idea--model-comparison--conformity-amplification-if-phase-2-is-successful)
+  - [Objective 2 — Human Conformity Detection](#objective-2---human-conformity-detection)
+  - [Objective 3 — Automatic, Non-LLM Conformity Detection](#objective-3--automatic-non-llm-conformity-detection)
+  - [Possible Objective 4 — Model Comparison & Conformity Amplification](#objective-possible-phase-3-idea--model-comparison--conformity-amplification-if-is-successful)
     - [Existing Code Artifacts](#existing-code-artifacts)
 - [Results](#results)
 - [Discussion](#discussion)
@@ -102,23 +102,12 @@ Detect the following in PR review comments:
 
 #### GHArchive Event Types
 
-Event types are divided into two scoring tracks based on whose voice is being measured.
-
-##### Track 1 — Reviewer Event Types
-These are the primary source of conformity signals: a reviewer exerting social or technical pressure on a contributor's code. Scored using [`CONFORMITY_SYSTEM_PROMPT.md`](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (FUN / NSI / INSI / ISI).
-
 | Code | GHArchive type | Description |
 |------|----------------|-------------|
 | `PR_REVIEW` | `PullRequestReviewEvent` | PR reviews (approve, request changes, comment) |
 | `PR_REVIEW_COMMENT` | `PullRequestReviewCommentEvent` | Inline comments on PR diff |
 | `ISSUE_COMMENT` | `IssueCommentEvent` | Comments on PRs (PRs are issues) |
-
-##### Track 2 — Contributor Event Types (Anticipatory Conformity)
-`PullRequestEvent` captures the PR title and description written by the *contributor* before review begins. Rather than measuring pressure from a reviewer, Track 2 captures **Anticipatory Conformity Signaling (ACS)**: the contributor's proactive display of norm awareness before any reviewer feedback is received. Scored using a separate prompt (see [Scoring — Track 2](#track-2--contributor-conformity-signaling-pullrequestevent)).
-
-| Code | GHArchive type | Description |
-|------|----------------|-------------|
-| `PULL_REQUEST` | `PullRequestEvent` | PR opened, closed, merged |
+| `PULL_REQUEST` | `PullRequestEvent` | PR opened, closed, merged — captures the contributor's PR title and description, used for detecting **Anticipatory Conformity Signaling (ACS)** |
 
 **Configuration:** Event types are defined in [`dataset_readers/gharchive/config.py`](dataset_readers/gharchive/config.py) (`DEFAULT_EVENT_TYPES`) and the `EventType` enum in [`dataset_readers/gharchive/models.py`](dataset_readers/gharchive/models.py).
 
@@ -211,7 +200,7 @@ Before scoring, a stratified sample is drawn per repository. Stratification is b
 - 10 repos × 200 = **2,000 comments total (ceiling)**
 - Actual totals will be lower: sparse strata (e.g., `PullRequestReviewEvent` has only 3 rows in gin-gonic/gin, 1 in pallets/flask) cannot reach the 50 cap, so the realized corpus will be somewhat below the ceiling.
 
-The sample is stored in a `samples` table in the database; the judge operates over this table rather than all of `cleaned`. Each row is labeled by track so the correct scoring prompt is applied.
+The sample is stored in a `samples` table in the database; the judge operates over this table rather than all of `cleaned`.
 
 ### Scoring
 #### Two Goals: Detection vs. Contextual Scoring
@@ -230,12 +219,7 @@ Use the materialized `repo` and `pr_number` columns (added to the `cleaned` tabl
 Capture implicit and contextual conformity signals not detectable via lexical methods, on a per-comment basis.
 
 #### Procedure
-In this phase, the LLM annotates the dataset using the scoring prompts defined in the [Scoring](#scoring) section. Each comment is evaluated according to its track:
-
-- **Track 1** (reviewer event types: `PullRequestReviewEvent`, `PullRequestReviewCommentEvent`, `IssueCommentEvent`): scored using the CONFORMITY prompt (FUN / NSI / INSI / ISI).
-- **Track 2** (contributor event type: `PullRequestEvent`): scored using the Contributor Conformity Signaling prompt.
-
-The model outputs a JSON object with independent reasoning and a 0–3 score per dimension.
+In this phase, the LLM annotates the dataset using the scoring prompts defined in the [Scoring](#scoring) section. Each comment is scored independently; the judge selects the appropriate prompt based on event type. The model outputs a JSON object with independent reasoning and a 0–3 score per dimension.
 
 #### LLM Conformity Score
 The LLM provides four independent dimensions per comment, each with a 0–3 score and a reasoning field (see [`judge/README.md`](../../judge/README.md) for the full schema):

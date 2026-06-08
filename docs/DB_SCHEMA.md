@@ -78,6 +78,36 @@ Normalized preprocessed data. One row per event that passed preprocessing. Frequ
 
 ---
 
+## Table: `samples`
+
+Stratified sample selection. One row per selected event ID. Written by `sample.py`; dropped and recreated on each run (re-running is idempotent). The judge operates over this table, not all of `cleaned`.
+
+| Column       | Type | Description |
+|--------------|------|-------------|
+| `id`         | TEXT | Primary key. FK → `cleaned.id` (and `events.id`). |
+| `repo`       | TEXT | `owner/name` string (e.g. `django/django`). Copied from `cleaned`. |
+| `event_type` | TEXT | GitHub event type (e.g. `IssueCommentEvent`). Copied from `cleaned`. |
+| `stratum_key`| TEXT | `"{repo}|{event_type}"` — the stratification cell. Convenient for `GROUP BY`. |
+
+Strata are `repo × event_type` cells. Each stratum draws up to **50** rows (cap); cells with fewer than **25** rows take all available. Seeding is per-stratum and deterministic — see [`sampling/README.md`](../sampling/README.md) for seed derivation and the full design rationale.
+
+**To get a full scoreable record** (text + metadata from `cleaned`):
+
+```sql
+SELECT
+    s.id,
+    s.repo,
+    s.event_type,
+    c.cleaned_text,
+    c.tokens,
+    c.author_association,
+    c.created_at
+FROM samples s
+INNER JOIN cleaned c ON c.id = s.id;
+```
+
+---
+
 ## Table: `scores`
 
 LLM judge output. One row per **(comment_id, model_name)**. Schema matches the JSON in [`CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): four independent dimensions (FUN, NSI, INSI, ISI), each with reasoning text and a 0–3 score. If the model response cannot be parsed as JSON, all four scores are stored as `-1` and parse metadata is retained for retry/inspection.
