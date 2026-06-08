@@ -25,14 +25,17 @@ sqlite3 data/raw/events.db "SELECT COUNT(*) AS total, COUNT(DISTINCT id) AS uniq
 # Total rows
 sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned;"
 
-# Per repo (join events for repo metadata)
-sqlite3 data/raw/events.db "SELECT json_extract(e.event_data, '$.repo.name') AS repo, COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 1;"
+# Per repo
+sqlite3 data/raw/events.db "SELECT repo, COUNT(*) FROM cleaned GROUP BY repo ORDER BY repo;"
 
 # Per event type
-sqlite3 data/raw/events.db "SELECT json_extract(e.event_data, '$.type'), COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 2 DESC;"
+sqlite3 data/raw/events.db "SELECT event_type, COUNT(*) FROM cleaned GROUP BY event_type ORDER BY 2 DESC;"
 
 # Per date
-sqlite3 data/raw/events.db "SELECT date(json_extract(e.event_data, '$.created_at')), COUNT(*) FROM cleaned c JOIN events e ON e.id = c.id GROUP BY 1 ORDER BY 1;"
+sqlite3 data/raw/events.db "SELECT date(created_at), COUNT(*) FROM cleaned GROUP BY 1 ORDER BY 1;"
+
+# NULL pr_number audit (plain IssueCommentEvents or malformed events)
+sqlite3 data/raw/events.db "SELECT COUNT(*) FROM cleaned WHERE pr_number IS NULL AND repo != '';"
 ```
 
 ---

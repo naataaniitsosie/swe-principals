@@ -46,8 +46,19 @@ def clean_db(workflow: Workflow, db_path: Path) -> tuple[int, int, int]:
         if cleaned is not None:
             tokens_json = json.dumps(cleaned.get("tokens") or [], ensure_ascii=False)
             conn.execute(
-                "INSERT OR REPLACE INTO cleaned (id, cleaned_text, tokens) VALUES (?, ?, ?)",
-                (eid_key or str(read_count), cleaned.get("cleaned_text") or "", tokens_json),
+                "INSERT OR REPLACE INTO cleaned "
+                "(id, cleaned_text, tokens, repo, pr_number, event_type, created_at, author_association) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    eid_key or str(read_count),
+                    cleaned.get("cleaned_text") or "",
+                    tokens_json,
+                    cleaned.get("repo") or "",
+                    cleaned.get("pr_number"),
+                    cleaned.get("event_type") or "",
+                    cleaned.get("created_at") or "",
+                    cleaned.get("author_association") or "",
+                ),
             )
             written_count += 1
 

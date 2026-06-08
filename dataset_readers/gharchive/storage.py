@@ -10,9 +10,9 @@ events
     event_data is the full GitHub event; query with json_extract(event_data, '$....').
 
 cleaned
-    Normalized preprocessed data (preprocess.py). Only derived data; raw fields come from events.
-    Columns: id (PK, FK to events.id), cleaned_text, tokens (JSON text).
-    Join with events to get repo, created_at, type, author_association (no duplication).
+    Preprocessed data (preprocess.py). Columns: id (PK), cleaned_text, tokens (JSON),
+    plus five materialized fields from events: repo, pr_number, event_type, created_at,
+    author_association. No JOIN with events needed for common query patterns.
 """
 import json
 import sqlite3
@@ -71,18 +71,21 @@ def get_raw_db_stats(db_path: Path) -> Dict[str, Any]:
     }
 
 
-# Normalized cleaned table: only id + derived fields. Raw fields (repo, created_at, type, author_association) live in events.
 CLEANED_TABLE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS cleaned (
     id TEXT PRIMARY KEY,
     cleaned_text TEXT NOT NULL,
-    tokens TEXT NOT NULL
+    tokens TEXT NOT NULL,
+    repo TEXT NOT NULL DEFAULT '',
+    pr_number INTEGER,
+    event_type TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT '',
+    author_association TEXT NOT NULL DEFAULT ''
 )
 """
 
 
 def _create_cleaned_table(conn: sqlite3.Connection) -> None:
-    """Create normalized cleaned table (id, cleaned_text, tokens). Join with events for repo, created_at, type, author_association."""
     conn.executescript(CLEANED_TABLE_SCHEMA.strip())
 
 

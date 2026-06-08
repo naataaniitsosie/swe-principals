@@ -93,16 +93,24 @@ def finalize(ctx: Context) -> Optional[Context]:
 
 
 def slim_output(ctx: Context) -> Optional[Context]:
-    """Keep only pertinent fields: id, cleaned_text, repo, created_at, type, author_association, tokens."""
+    """Keep only pertinent fields: id, cleaned_text, repo, pr_number, event_type, created_at, author_association, tokens."""
     ev = ctx.event
     repo = ev.get("repo") or {}
     repo_name = repo.get("name", "") if isinstance(repo, dict) else ""
+    event_type = ev.get("type") or ""
+    payload = ev.get("payload") or {}
+    if event_type == "IssueCommentEvent":
+        issue = payload.get("issue") or {}
+        pr_number = issue.get("number") if issue.get("pull_request") else None
+    else:
+        pr_number = (payload.get("pull_request") or {}).get("number")
     ctx.event = {
         "id": ev.get("id"),
         "cleaned_text": ctx.cleaned_text or ev.get("cleaned_text", ""),
         "repo": repo_name,
+        "pr_number": pr_number,
+        "event_type": event_type,
         "created_at": ev.get("created_at"),
-        "type": ev.get("type"),
         "author_association": _get_author_association(ev),
         "tokens": ctx.tokens or ev.get("tokens", []),
     }
