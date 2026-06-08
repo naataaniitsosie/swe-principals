@@ -33,7 +33,7 @@ preprocessing/
 ---
 
 ## How to Run
-
+From the root level, execute:
 ```bash
 python preprocess.py [--min-tokens N]
 ```
