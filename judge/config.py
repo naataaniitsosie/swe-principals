@@ -1,88 +1,62 @@
 """
-Model resolution for `judge.py` / `judge.runner`.
+Model registry for judge.py.
 
-Two backends behave differently:
+Each entry maps a CLI name to backend, the tag/id sent to that backend,
+and a human-readable location string logged at run start.
 
-- **Ollama** (`--backend ollama`, the CLI default): `--model` is an Ollama *tag*
-  (e.g. `gemma4:e4b`). We also allow explicit supported model names (see
-  `SUPPORTED_MODELS`) so you can pass `gemma4-e4b` instead of the full tag. Whatever
-  string is resolved here is stored in SQLite as `scores.model_name`.
-
-- **OpenAI** (`--backend openai`): `--model` is an OpenAI API model id
-  (e.g. `gpt-5.4-mini`). There is no alias map; the id is used as-is (or the
-  OpenAI default below if `--model` is omitted).
+Passing an unregistered name raises ValueError. To add a new model, add an
+entry to MODEL_REGISTRY below.
 """
 
-from typing import Literal
-
-# ---------------------------------------------------------------------------
-# Shared
-# ---------------------------------------------------------------------------
-
-# CLI / runner backend selector; drives which branch of `resolve_model_for_backend` runs.
-Backend = Literal["ollama", "openai"]
+from typing import Literal, NamedTuple
 
 
-# ---------------------------------------------------------------------------
-# OpenAI only (`--backend openai`)
-# ---------------------------------------------------------------------------
+Backend = Literal["ollama", "openai", "openrouter"]
 
-# Used when `--backend openai` and `--model` is omitted or blank.
-# Must match an id your API key can call; stored verbatim in `scores.model_name`.
-DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
+
+class ModelInfo(NamedTuple):
+    backend: Backend
+    tag: str       # identifier sent to the backend API
+    location: str  # logged at run start so the user knows where inference runs
 
 
 # ---------------------------------------------------------------------------
-# Ollama only (`--backend ollama`, default)
+# Frontier judges — score all four dimensions (FUN, NSI, INSI, ISI).
+# Inter-rater agreement across these models is the primary reliability signal.
+# See judge/README.md for the rationale behind dropping the social/technical split.
 # ---------------------------------------------------------------------------
 
-# Explicit CLI model names -> full Ollama model tags (what `ollama run` / the API expects).
-# Only this backend uses this map. If `--model` is not a key here, it is treated as a
-# literal tag (so you can pass any pulled model without adding it below).
-SUPPORTED_MODELS = {
-    "gemma4-e4b": "gemma4:e4b",
-    "phi4": "phi4-reasoning",
-    "qwen3-coder": "qwen3-coder-next",
-    "starcoder2-3b": "starcoder2:3b",
-    "starcoder2": "starcoder2:instruct",
-    "granite-code": "granite-code:34b",
+MODEL_REGISTRY: dict[str, ModelInfo] = {
+    "claude-sonnet": ModelInfo("openrouter", "anthropic/claude-sonnet-4-6",       "OpenRouter — Anthropic Claude Sonnet 4.6"),
+    "gemma4-27b":    ModelInfo("ollama",     "gemma4:27b",                         "local Ollama — Gemma 4 27B"),
+    "gpt-5.4-mini":  ModelInfo("openai",     "gpt-5.4-mini",                       "OpenAI API — GPT-5.4 mini"),
+    "deepseek-v3":   ModelInfo("openrouter", "deepseek/deepseek-chat-v3-0324",     "OpenRouter — DeepSeek V3.2"),
+
+    # -------------------------------------------------------------------------
+    # Smoke test models — pipeline verification only, not production scoring
+    # -------------------------------------------------------------------------
+    "gemma4-e4b":    ModelInfo("ollama",     "gemma4:e4b",                         "local Ollama — Gemma 4 E4B [smoke test]"),
+    "starcoder2-3b": ModelInfo("ollama",     "starcoder2:3b",                      "local Ollama — StarCoder2 3B [smoke test]"),
+
+    # -------------------------------------------------------------------------
+    # Deprecated — retained so existing scores.model_name values remain
+    # resolvable, but not recommended for new runs.
+    # -------------------------------------------------------------------------
+    "mistral-large":  ModelInfo("openrouter", "mistralai/mistral-large",            "OpenRouter — Mistral Large 3 [deprecated]"),
+    "phi4":           ModelInfo("ollama",     "phi4-reasoning",                     "local Ollama — Phi-4 Reasoning [deprecated]"),
+    "qwen3-coder":    ModelInfo("openrouter", "qwen/qwen3-coder-next",              "OpenRouter — Qwen3 Coder Next [deprecated]"),
+    "o4-mini":        ModelInfo("openai",     "o4-mini",                            "OpenAI API — o4-mini [deprecated]"),
+    "starcoder2":     ModelInfo("ollama",     "starcoder2:instruct",                "local Ollama — StarCoder2 15B Instruct [deprecated]"),
+    "granite-code":   ModelInfo("ollama",     "granite-code:34b",                   "local Ollama — Granite Code 34B [deprecated]"),
 }
 
-# When `--backend ollama` and `--model` is omitted: resolve this *key* via `SUPPORTED_MODELS`.
-DEFAULT_MODEL = "gemma4-e4b"
+DEFAULT_MODEL = "gemma4-27b"
 
 
-def resolve_model(name: str) -> str:
-    """
-    Ollama: map a `--model` string to the tag we store and send to Ollama.
-
-    - If `name` matches a key in `SUPPORTED_MODELS` (case-insensitive), return the tag.
-    - Otherwise return `name` unchanged (already a full Ollama tag).
-    """
+def resolve_model(name: str) -> ModelInfo:
+    """Return ModelInfo for a registered CLI model name. Raises ValueError if not found."""
     key = name.strip().lower()
-    if key in SUPPORTED_MODELS:
-        return SUPPORTED_MODELS[key]
-    return name
-
-
-# ---------------------------------------------------------------------------
-# Both backends: single entry point for `scores.model_name` / dedupe key
-# ---------------------------------------------------------------------------
-
-
-def resolve_model_for_backend(backend: Backend, model_arg: str | None) -> str:
-    """
-    Return the model string used everywhere after CLI parsing: judging, DB writes,
-    and `get_scored_comment_ids`.
-
-    - **openai:** API model id; default `DEFAULT_OPENAI_MODEL` if `model_arg` empty.
-    - **ollama:** resolved via `resolve_model` / `SUPPORTED_MODELS`; default
-      `DEFAULT_MODEL` if `model_arg` empty.
-    """
-    if backend == "openai":
-        if model_arg is None or not str(model_arg).strip():
-            return DEFAULT_OPENAI_MODEL
-        return str(model_arg).strip()
-    if model_arg is None or not str(model_arg).strip():
-        return resolve_model(DEFAULT_MODEL)
-    return resolve_model(str(model_arg).strip())
+    if key in MODEL_REGISTRY:
+        return MODEL_REGISTRY[key]
+    known = ", ".join(k for k in MODEL_REGISTRY if "deprecated" not in MODEL_REGISTRY[k].location)
+    raise ValueError(f"Unknown model {name!r}. Active models: {known}")

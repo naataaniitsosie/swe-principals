@@ -93,7 +93,8 @@ For example, consider an anecdotal shift in a software project: on day one, a pr
 ### Research Questions (RQs)
 1. To what extent can we linguistically distinguish between social gatekeeping (NSI) and technical guidance (ISI) in historical PR comments?
 2. Do instruction-tuned and code-refined LLMs exhibit a higher "Conformity Bias" than the human baseline when generating or evaluating PR feedback? (Phase 3)
-3. Does model training focus correlate with scoring performance on specific conformity dimensions? Specifically: are social-focused models (e.g., Phi-4, Claude Sonnet, Gemma) better at scoring social dimensions (NSI/INSI) than code-focused models (e.g., StarCoder, DeepSeek, Qwen3-Coder)? Is the inverse true for technical dimensions (FUN/ISI)? See [`MODEL_LIST.md`](MODEL_LIST.md) for model categorization.
+3. ~~Does model training focus correlate with scoring performance on specific conformity dimensions? Specifically: are social-focused models (e.g., Phi-4, Claude Sonnet, Gemma) better at scoring social dimensions (NSI/INSI) than code-focused models (e.g., StarCoder, DeepSeek, Qwen3-Coder)? Is the inverse true for technical dimensions (FUN/ISI)?~~ **Deprecated.** The capability asymmetry this question assumes no longer holds at the frontier; the social/technical judge split has been retired. If social and technical judges disagree on FUN/ISI, the disagreement cannot be cleanly attributed to model type vs. calibration noise. See [`judge/README.md`](../../judge/README.md).
+3a. Do frontier LLM judges produce consistent inter-rater agreement across all four conformity dimensions (FUN, NSI, INSI, ISI)? High inter-rater disagreement on a given dimension flags it for human adjudication (Objective 2) before results can be interpreted.
 4. To what extent do contributors exhibit Anticipatory Conformity Signaling (ACS) in PR descriptions, and does ACS predict the intensity of reviewer conformity pressure (NSI/INSI) in the same PR thread?
 
 ## Methodology
@@ -308,13 +309,23 @@ ConformityScore =
 Weights (α, β) will be determined empirically during validation.
 
 #### LLM Coding Scheme (Detection System Prompt)
-See [CONFORMITY_SYSTEM_PROMPT.md](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) for the full system prompt. Modify that file to change the system prompt in experimentation.
+
+Versioned prompts live in [`prompt/detection/`](../../prompt/detection/). The active prompt for each experiment run is selected by `judge/rubric.py`.
+
+| Version | File | Change from previous |
+|---------|------|----------------------|
+| V1 | [`prompt/detection/v1.md`](../../prompt/detection/v1.md) | Baseline — all five examples including the Masquerade shot |
+| V2 | [`prompt/detection/v2.md`](../../prompt/detection/v2.md) | Masquerade (Hybrid) shot removed (see rationale below) |
+
+**Why the Masquerade shot was removed in V2.** The Masquerade is a useful *analysis-time* abstraction — a label we apply post-hoc when a reviewer appears to cloak a social norm as a functional requirement, detectable by comparing NSI and FUN scores in aggregate across comments or threads. Presenting it as an *inference-time* example category is a category error: it asks the model to detect a co-occurrence pattern and name it, rather than scoring each dimension independently on its own axis. The shot risks priming the model to weight FUN, NSI, and ISI jointly — exactly the kind of dimension-coupling the rubric is designed to prevent. In V2, the model's job is to score each dimension in isolation; the Masquerade is left as a post-hoc interpretation layer in analysis, not a scoring target.
 
 #### Judge Validation (Meta-Evaluation)
 
 > **Not yet implemented — this step is critical and must be completed before judge outputs are used for analysis.**
 
 Before using LLM judge outputs for analysis, we validate the scoring rubric through **preference-based meta-evaluation**. See [`docs/notes/META_EVALUATION.md`](META_EVALUATION.md) for methodology and implementation.
+
+**Model task understanding is a prerequisite for valid scoring.** An LLM judge that does not grasp the distinction between social gatekeeping (NSI/INSI) and technical guidance (FUN/ISI) will produce scores that are internally consistent but meaningless as conformity measurements. Krumdick et al. (2025) demonstrate that LLM judges require exposure to human-annotated ground truth to calibrate task-specific quality dimensions; without such grounding, judge scores diverge significantly from human standards and fail as reliable proxies for human preference [2]. This is the theoretical basis for the human annotation phase (Objective 2) preceding any interpretation of LLM scores.
 
 ---
 
@@ -522,18 +533,8 @@ Then refinement may increase social conformity in code review discourse.
 ---
 
 ##### Models
-| Model | HF ID | Notes |
-| ----- | ----- | ----- |
-| GPT2 Small | `openai-community/gpt2` | baseline model |
-| <Model Name> | <HF ID> | <Notes> |
 
-###### Models for Judging
-| Model | HF ID (Quant Basis) | Rationale |
-| ----- | ----- | ----- |
-| Llama 3.1 8B (Q8_0) | meta-llama/Llama-3.1-8B-Instruct | Given my hardward constraints: It is useful for high-volume, first-pass scoring where social cues are obvious. |
-| Gemma 2 27B (Q4_K_M) | google/gemma-2-27b-it | The Sweet Spot: This is your primary "Judge." At 27B parameters, it has the world-knowledge of a much larger model but fits comfortably in my hardward constraints. It is highly sensitive to sociolinguistic nuance. |
-| Phi-4 (14B) | microsoft/phi-4 | The Logic Specialist: A 14B model that punches way above its weight. It is trained with a focus on reasoning and logic, making it excellent at distinguishing "Hard Constraints" (FUN) from "Soft" ones. |
-| Llama 3.1 70B (Q2_K) | meta-llama/Llama-3.1-70B-Instruct | The Oracle (Local): Even at extreme compression (2-bit), a 70B model often retains better "common sense" and social intuition than a full 8B model. Use this for resolving difficult or ambiguous "Masquerade" cases. |
+See [`judge/README.md`](../../judge/README.md) for the full model registry, selection rationale, and hardware feasibility notes. Models are grouped into social judges (optimised for NSI/INSI) and technical judges (optimised for FUN/ISI); this split is itself a test of RQ3.
 
 #### Existing Code Artifacts
 In this repository, use the `dataset_readers` folder to read the dataset and extract PR comments.
@@ -624,6 +625,15 @@ To regenerate the Markdown files from the current database, run from the project
   title={Subliminal Learning: language models transmit behavioral traits via hidden signals in data},
   author={Cloud, Andrew and Le, Minh and Chua, Jonathan and Betley, Jacob and Sztyber-Betley, Aleksandra and Hilton, Joshua and Marks, Simon and Evans, Owain},
   journal={arXiv preprint arXiv:2507.14805},
+  year={2025}
+}
+```
+2.
+```
+@article{krumdick2025nofree,
+  title={No Free Labels: Limitations of LLM-as-a-Judge Without Human Grounding},
+  author={Krumdick, Michael and Lovering, Charles and Reddy, Varshini and Ebner, Seth and Tanner, Chris},
+  journal={arXiv preprint arXiv:2503.05061},
   year={2025}
 }
 ```

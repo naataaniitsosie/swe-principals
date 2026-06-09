@@ -1,24 +1,23 @@
 """
-LLM system prompt: full contents of papers/publication1/CONFORMITY_SYSTEM_PROMPT.md.
+LLM system prompt for detection scoring.
 
-The paper links to that file from CONFORMITY.md (LLM Coding Scheme section).
+The active prompt is prompt/detection/latest.md.
+To promote a new version: cp prompt/detection/vN.md prompt/detection/latest.md
+See prompt/detection/README.md for the versioning convention.
 """
 
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SYSTEM_PROMPT_PATH = _REPO_ROOT / "papers" / "publication1" / "CONFORMITY_SYSTEM_PROMPT.md"
+_SYSTEM_PROMPT_PATH = _REPO_ROOT / "prompt" / "detection" / "latest.md"
 
 
 def _load_system_prompt() -> str:
-    """Return the system prompt markdown exactly as in CONFORMITY_SYSTEM_PROMPT.md."""
     if not _SYSTEM_PROMPT_PATH.is_file():
-        raise FileNotFoundError(f"System prompt file not found: {_SYSTEM_PROMPT_PATH}")
-    text = _SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
-    return text.strip() + "\n"
+        raise FileNotFoundError(f"System prompt not found: {_SYSTEM_PROMPT_PATH}")
+    return _SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip() + "\n"
 
 
-# Single source of truth: papers/publication1/CONFORMITY_SYSTEM_PROMPT.md
 SYSTEM_PROMPT = _load_system_prompt()
 
 USER_MESSAGE_TEMPLATE = """Score this PR comment:

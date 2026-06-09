@@ -110,29 +110,31 @@ INNER JOIN cleaned c ON c.id = s.id;
 
 ## Table: `scores`
 
-LLM judge output. One row per **(comment_id, model_name)**. Schema matches the JSON in [`CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): four independent dimensions (FUN, NSI, INSI, ISI), each with reasoning text and a 0–3 score. If the model response cannot be parsed as JSON, all four scores are stored as `-1` and parse metadata is retained for retry/inspection.
+LLM judge output. One row per **(comment_id, model_name)**. Schema matches the JSON in [`CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md): four independent dimensions (FUN, NSI, INSI, ISI), each with reasoning text and a 0–3 score. If the model response cannot be parsed as JSON, all four scores are stored as `-1` and parse metadata is retained for inspection.
 
-| Column           | Type    | Description |
-|------------------|---------|-------------|
-| `comment_id`     | TEXT    | Same as `id` in `cleaned`. Part of primary key. |
-| `model_name`     | TEXT    | Model id (Ollama tag or OpenAI model name). Part of primary key. |
-| `fun_score`      | INTEGER | FUN (functional) score 0–3, or `-1` if parsing failed. |
-| `fun_reasoning`  | TEXT    | FUN reasoning. |
-| `nsi_score`      | INTEGER | NSI (explicit normative social) score 0–3, or `-1` if parsing failed. |
-| `nsi_reasoning`  | TEXT    | NSI reasoning. |
-| `insi_score`     | INTEGER | INSI (implicit normative social) score 0–3, or `-1` if parsing failed. |
-| `insi_reasoning` | TEXT    | INSI reasoning. |
-| `isi_score`      | INTEGER | ISI (informational / expert) score 0–3, or `-1` if parsing failed. |
-| `isi_reasoning`  | TEXT    | ISI reasoning. |
-| `created_at`     | TEXT    | Optional; copied from cleaned record. |
-| `parse_ok`       | INTEGER | `1` when model output parsed successfully; `0` for malformed/unparseable output. |
-| `error_type`     | TEXT    | Error category for failed parses, e.g. `json_parse_error`. Empty when `parse_ok=1`. |
-| `error_message`  | TEXT    | Parser exception message for failed parses. Empty when `parse_ok=1`. |
-| `raw_response`   | TEXT    | Raw model output. Stored mainly so `parse_ok=0` rows can be inspected and retried. |
+| Column               | Type    | Description |
+|----------------------|---------|-------------|
+| `comment_id`         | TEXT    | Same as `id` in `cleaned`. Part of primary key. |
+| `model_name`         | TEXT    | Model tag as sent to the backend (e.g. `gemma4:27b`, `gpt-5.4-mini`). Part of primary key. |
+| `experiment_version` | INTEGER | Value of `EXPERIMENT_VERSION` in `judge/storage.py`. Part of primary key — the same `(comment_id, model_name)` pair can exist once per version, so all experiment runs accumulate in one table. |
+| `fun_score`          | INTEGER | FUN (functional) score 0–3, or `-1` if parsing failed. |
+| `fun_reasoning`      | TEXT    | FUN reasoning. |
+| `nsi_score`          | INTEGER | NSI (explicit normative social) score 0–3, or `-1` if parsing failed. |
+| `nsi_reasoning`      | TEXT    | NSI reasoning. |
+| `insi_score`         | INTEGER | INSI (implicit normative social) score 0–3, or `-1` if parsing failed. |
+| `insi_reasoning`     | TEXT    | INSI reasoning. |
+| `isi_score`          | INTEGER | ISI (informational / expert) score 0–3, or `-1` if parsing failed. |
+| `isi_reasoning`      | TEXT    | ISI reasoning. |
+| `created_at`         | TEXT    | Optional; copied from cleaned record. |
+| `parse_ok`           | INTEGER | `1` when model output parsed successfully; `0` for malformed/unparseable output. |
+| `error_type`         | TEXT    | Error category for failed parses, e.g. `json_parse_error`. Empty when `parse_ok=1`. |
+| `error_message`      | TEXT    | Parser exception message for failed parses. Empty when `parse_ok=1`. |
+| `raw_response`       | TEXT    | Raw model output. Retained so `parse_ok=0` rows can be inspected. |
+| `experiment_version` | INTEGER | Value of `EXPERIMENT_VERSION` in `judge/storage.py` at write time. Bump that constant and drop this table to start a clean re-run. |
 
-**Primary key:** `(comment_id, model_name)`.
+**Primary key:** `(comment_id, model_name, experiment_version)`.
 
-The judge creates missing parse metadata columns automatically for older `scores` tables. If your DB still has a much older incompatible `scores` table (e.g. NSI/ISI only), drop it once so the judge can recreate the table with the full schema: `DROP TABLE IF EXISTS scores;` (you will lose prior judge rows).
+The scores table is the permanent record — **never drop it**. Each experiment version is its own namespace within the table (multi-tenant by version). Bumping `EXPERIMENT_VERSION` in `judge/storage.py` starts a fresh scoring run without touching any existing rows. Use `WHERE experiment_version = <n>` in all analysis queries to scope to a single experiment.
 
 ---
 
@@ -152,6 +154,7 @@ FROM cleaned
 GROUP BY 1 ORDER BY 1;
 
 -- Scores: row counts and mean scores per model (valid rows only; scores are 0–3)
+-- Always filter by experiment_version to scope to one run.
 SELECT
   model_name,
   COUNT(*) AS n,
@@ -161,6 +164,7 @@ SELECT
   ROUND(AVG(isi_score), 3)  AS avg_isi
 FROM scores
 WHERE parse_ok = 1
+  AND experiment_version = 1  -- change to your current EXPERIMENT_VERSION
 GROUP BY model_name
 ORDER BY model_name;
 
@@ -225,4 +229,5 @@ To **inspect** comments with scores in a human-readable layout (similar to the C
 
 - **events / cleaned table layout:** `dataset_readers/gharchive/storage.py`
 - **cleaned table (normalized):** `dataset_readers/gharchive/storage.py` (`CLEANED_TABLE_SCHEMA`). Written by `preprocessing/pipeline.py`. Materialized columns (`repo`, `pr_number`, `event_type`, `created_at`, `author_association`) are extracted at INSERT time — see [`preprocessing/FIELD_EXTRACTION.md`](../preprocessing/FIELD_EXTRACTION.md).
-- **scores table:** `judge/storage.py` (`SCORES_SCHEMA`)
+- **samples table:** `sampling/sampler.py`. Written by `sample.py`.
+- **scores table:** `judge/storage.py` (`SCORES_SCHEMA`, `EXPERIMENT_VERSION`)

@@ -1,136 +1,157 @@
 # Judge — LLM scoring (FUN / NSI / INSI / ISI)
 
-The judge scores cleaned PR comments using **Ollama** (local) or the **OpenAI API**, with the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md) (see also [CONFORMITY.md](../docs/notes/CONFORMITY.md)). It reads from the **cleaned** table and writes **scores**: for each dimension **FUN, NSI, INSI, ISI** — reasoning text plus a 0–3 score (same JSON schema as the prompt).
+The judge scores PR comments from the stratified sample using the rubric in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md). It reads from the **`samples`** table and writes **`scores`**: for each dimension **FUN, NSI, INSI, ISI** — a 0–3 score plus reasoning text.
 
-**Quick note:** Judges are chosen for size consistency so comparisons are not confounded by models that are too powerful or too weak for the rubric.
+## Two scoring modes (module layout)
 
-## Social Judges (NSI/INSI Detection)
+| Sub-package | Status | What it does |
+|-------------|--------|--------------|
+| [`detection/`](detection/) | **Implemented** — this is what `judge.py` runs | Score each comment in isolation; no thread context |
+| [`contextual/`](contextual/) | **Not implemented** | Score comments in the context of their PR thread or repo |
 
-*These models focus on human nuance, social psychology, and stylistic gatekeeping.*
+---
 
-*Size: dense models list total parameters; Mixture of Experts (MoE) models list active parameters with total MoE parameters in parentheses; em dash when the vendor does not publish counts (API-only judges).*
+## Models
 
-| Model | Size | Role | Access |
-|-------|------|------|--------|
-| Claude Sonnet 4.6 | — | Primary Social Judge. Expert at detecting passive-aggression and social cues. | OpenRouter |
-| Gemma 4 E4B | 4B effective | Practical local social/general judge for full scoring. | Ollama |
-| Mistral Large 3 | 41B active (675B MoE) | Cultural Baseline. Provides a non-US centric perspective on social interactions. | OpenRouter |
-| Phi-4-Reasoning-Vision-15B | 15B | CoT Specialist. Ideal for generating long Chain-of-Thought reasoning for "vibes." | Ollama |
-| GPT-5.4 mini | — | The Control Group. Standardized baseline for intent and instruction following. | OpenAI API |
+The `--model` flag selects the model **and** determines the backend automatically. The resolved backend and location are logged at run start.
 
-## Technical Judges (FUN/ISI Detection)
+### Why frontier-only, no social/technical split
 
-*These models focus on rigid syntax, functional correctness, and performance logic.*
+An earlier design split models into "social judges" (NSI/INSI) and "technical judges" (FUN/ISI) based on training focus. That split was retired for three reasons:
 
-| Model | Size | Role | Access |
-|-------|------|------|--------|
-| DeepSeek-V3.2 | 37B active (671B MoE) | SOTA Code Intelligence. Best for distinguishing logic flaws from stylistic choices. | OpenRouter |
-| Qwen3-Coder-Next | 3B active (80B MoE) | Local Powerhouse. Specialized in deep syntax and repository-wide standards. | Ollama |
-| o4-mini | — | Logical Verifier. Uses internal reasoning to verify if technical claims are factually true. | OpenAI API |
-| StarCoder 2 15B Instruct | 15B | Socially Blind. Trained on raw code data; treats social pressure as irrelevant noise. | Ollama |
-| Granite Code 34B | 34B | Enterprise Rigor. Detects "hardened" standards vs. subjective developer preferences. | Ollama |
+1. **The capability asymmetry no longer exists at the frontier.** Models like Claude Sonnet and Gemma 4 27B score all four dimensions reliably — specialized code models no longer have a meaningful edge on FUN/ISI.
+2. **It adds unjustifiable methodological complexity.** The social/technical split would need to be defended in the paper, and the justification is weaker now than it was two years ago.
+3. **Disagreements become uninterpretable.** If a social judge and a technical judge disagree on FUN/ISI scores, there is no clean way to determine whether the disagreement is a real signal or model-specific calibration noise.
+
+The replacement strategy: run all frontier judges on all four dimensions, then measure inter-rater agreement across models as the reliability signal.
+
+### Frontier judges
+
+Each model scores all four dimensions (FUN, NSI, INSI, ISI). Inter-rater agreement across models is the primary reliability measure.
+
+| CLI name | Size | Tag / ID | Hosted at | Role |
+|----------|------|----------|-----------|------|
+| `claude-sonnet` | — | `anthropic/claude-sonnet-4-6` | OpenRouter | Primary judge. Strong instruction following and social reasoning. |
+| `gemma4-27b` | 27B | `gemma4:27b` | local Ollama | Local workhorse. ~14 GB Q4, fits comfortably on 34 GB Mac. `ollama pull gemma4:27b` |
+| `gpt-5.4-mini` | — | `gpt-5.4-mini` | OpenAI API | Standardised baseline. Fast and cheap for full-sample runs. |
+| `deepseek-v3` | 37B active (671B MoE) | `deepseek/deepseek-chat-v3-0324` | OpenRouter | Fourth perspective. Strong general reasoning. [HF](https://huggingface.co/deepseek-ai/DeepSeek-V3.2) |
+
+### Smoke test models
+
+Fast, low-quality models for verifying the pipeline end-to-end before committing to a full run. **Do not use for production scoring.**
+
+| CLI name | Size | Tag / ID | Hosted at | Notes |
+|----------|------|----------|-----------|-------|
+| `gemma4-e4b` | 4B effective | `gemma4:e4b` | local Ollama | Smoke test proxy for `gemma4-27b`. `ollama pull gemma4:e4b` |
+| `starcoder2-3b` | 3B | `starcoder2:3b` | local Ollama | Lightweight smoke test. `ollama pull starcoder2:3b` |
+
+---
+
+### Running the full judge suite
+
+The intended workflow is to run all four frontier models on the full sample, then compare agreement:
+
+```bash
+# 1. Smoke test: verify pipeline and JSON output before committing
+python judge.py -m gemma4-e4b -n 20 -r expressjs/express
+python browse_scores.py --model gemma4:e4b --sample-n 15
+
+# 2. Full runs — one per frontier model
+python judge.py -m gemma4-27b  --skip-existing
+python judge.py -m claude-sonnet --skip-existing
+python judge.py -m gpt-5.4-mini --skip-existing
+python judge.py -m deepseek-v3  --skip-existing
+```
+
+Inter-rater agreement (e.g. Krippendorff's α or ICC) is then computed across all four models per dimension. Dimensions where models agree are reliable; dimensions where they diverge need human adjudication (Objective 2).
+
+---
 
 ## Prerequisites
 
-1. **Backend (pick one or both):**
-   - **Ollama:** installed and running ([ollama.ai](https://ollama.ai)). Pull a model, e.g. `ollama pull gemma4:e4b`.
-   - **OpenAI:** `pip install openai` (included in `requirements.txt`). Set **`OPENAI_API_TOKEN`** for the OpenAI API. **Default:** put it in a **`.env`** file at the **repository root** (same folder as `project_config.py`); it is loaded automatically when you run the judge—no need to `export` unless you prefer. Do not commit `.env` (it is gitignored). Default API model: `gpt-5.4-mini` (override with `--model`).
-2. **Python deps:** from the repo root: `pip install -r requirements.txt`.
-3. **Data:** The **cleaned** table must exist in the project DB (run `python preprocess.py` after extraction if needed). Default DB path: `data/raw/events.db` (see `project_config.py`).
+- **Ollama models:** Ollama installed and running. Pull the model first (see `ollama pull` commands in the tables above).
+- **OpenAI models:** `OPENAI_API_TOKEN` in `.env` at the repo root (or exported).
+- **OpenRouter models:** `OPENROUTER_API_TOKEN` in `.env` at the repo root (or exported).
+- **Data:** `samples` table must exist (run `python sample.py` if not).
 
 ## How to run
 
-From the **repository root** (not inside `judge/`):
-
 ```bash
-# Ollama (default backend), default model from judge/config.py
-python judge.py
+# Local Ollama
+python judge.py -m gemma4-27b --skip-existing
 
-python judge.py --model gemma4-e4b
-python judge.py --model phi4
-python judge.py --model qwen3-coder
-python judge.py --model starcoder2-3b
-python judge.py --model starcoder2
-python judge.py --model granite-code
+# OpenAI
+python judge.py -m gpt-5.4-mini --skip-existing
 
-# OpenAI Chat Completions (OPENAI_API_TOKEN in .env at repo root, or export)
-python judge.py --backend openai
+# OpenRouter
+python judge.py -m claude-sonnet --skip-existing
 
-python judge.py --backend openai --model gpt-5.4-mini
+# Smoke test: 10 comments from one repo
+python judge.py -m gemma4-e4b -n 10 -r expressjs/express
 
-# Limit to 10 comments (useful for testing)
-python judge.py --limit 10
+# Dry run: see what would be scored without calling the model
+python judge.py -m gemma4-27b --dry-run
 
-# Skip comments already scored for this model (resume / avoid re-runs)
-python judge.py --skip-existing
-
-# Use a specific DB file
-python judge.py --db path/to/events.db
+# Score only inline diff comments across all repos
+python judge.py -m gemma4-27b -e PullRequestReviewCommentEvent --skip-existing
 ```
 
 ## CLI options
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--backend` | `-b` | `ollama` | `ollama` (local) or `openai` (API; needs `OPENAI_API_TOKEN`). |
-| `--model` | `-m` | see help | Ollama: supported name (`gemma4-e4b`, `phi4`, `qwen3-coder`, `starcoder2-3b`, `starcoder2`, `granite-code`) or full tag. OpenAI: API model id. Defaults differ per backend. |
-| `--limit` | `-n` | none | Maximum number of comments to score. |
-| `--skip-existing` | — | off | Skip comments that already have a score for this model. |
-| `--db` | — | `project_config` | Path to the SQLite database. |
-| `--repo` | `-r` | all repos | Restrict to one repo (`owner/name`). |
+| `--model` | `-m` | **required** | Model name from the registry above. |
+| `--limit` | `-n` | none | Max comments to score (smoke tests). |
+| `--skip-existing` | — | off | Skip `(comment_id, model)` pairs already in `scores`. |
+| `--repo` | `-r` | all repos | Filter to one repo (`owner/name`). |
+| `--event-type` | `-e` | all types | Filter to one event type (e.g. `PullRequestReviewCommentEvent`). |
+| `--dry-run` | — | off | Print per-stratum counts; do not call the model. |
 
-## Database schema
+---
 
-One SQLite file (default `data/raw/events.db`) holds three tables:
+## Experiment versioning
 
-| Table     | Written by       | Shape |
-|-----------|------------------|--------|
-| **events**  | `dataset.py`     | `id` (TEXT PK), `event_data` (TEXT, JSON). Raw GHArchive events. |
-| **cleaned** | `preprocess.py`  | Normalized: `id`, `cleaned_text`, `tokens` only. Join with **events** on `id` for repo, created_at, type, author_association. |
-| **scores**  | `judge.py`       | See below. |
+`EXPERIMENT_VERSION` in `judge/storage.py` is an integer constant baked into every `scores` row. It is part of the primary key — `(comment_id, model_name, experiment_version)` — so the same comment scored by the same model across multiple experiments produces separate rows, all kept in the table. Think of it as a multi-tenant table: each version is its own namespace. Five full experiments across ten models could accumulate 10k+ rows without any conflicts.
 
-**scores** table (judge output): see [`docs/DB_SCHEMA.md`](../docs/DB_SCHEMA.md) for the full column list. In short: `fun_*`, `nsi_*`, `insi_*`, `isi_*` (score + reasoning each), plus `created_at`.
+**To start a new experiment run:** bump `EXPERIMENT_VERSION` in `judge/storage.py` and re-run `judge.py`. No existing rows are touched.
 
-| Column | Description |
-|--------|-------------|
-| `comment_id`, `model_name` | Primary key. |
-| `fun_score`, `fun_reasoning` | Functional / hard-constraint dimension. |
-| `nsi_score`, `nsi_reasoning` | Explicit normative social influence. |
-| `insi_score`, `insi_reasoning` | Implicit normative social influence. |
-| `isi_score`, `isi_reasoning` | Informational / expert influence. |
-| `created_at` | Optional; from cleaned record. |
+**Do not drop the scores table.** It is the permanent record of all scoring work. `--skip-existing` already scopes to the current version, so re-running is safe.
+
+**Always filter by version in analysis queries:**
+```sql
+SELECT * FROM scores WHERE experiment_version = 1 AND parse_ok = 1;
+```
+
+---
 
 ## Output
 
-- **Table:** `scores` in the same SQLite DB as `cleaned`.
-- **Deduplication:** One row per `(comment_id, model_name)`. Re-running overwrites existing rows for that pair.
+- **Table:** `scores` in `data/raw/events.db`.
+- **Primary key:** `(comment_id, model_name)` — re-runs overwrite existing rows for that pair.
+- **Schema:** see [`docs/DB_SCHEMA.md`](../docs/DB_SCHEMA.md#table-scores).
 
-Example query:
-
+Quick check:
 ```bash
-sqlite3 data/raw/events.db "SELECT comment_id, model_name, nsi_score, isi_score FROM scores LIMIT 5;"
+sqlite3 data/raw/events.db "SELECT model_name, COUNT(*), AVG(nsi_score) FROM scores WHERE parse_ok=1 GROUP BY model_name;"
 ```
 
-To **print** scored comments in a readable Markdown layout (same rubric as the prompt), use **`browse_scores.py`** at the repo root. **`--model`** must match `scores.model_name` exactly (Ollama tag or OpenAI id). Example for the default OpenAI mini model:
-
+Browse scored comments in a readable layout:
 ```bash
-python browse_scores.py --model gpt-5.4-mini --sample-n 15
+python browse_scores.py --model gemma4:27b --sample-n 15
 ```
 
-## Clear all scores — **dangerous**
+---
 
-> **Warning — destructive:** This **drops the entire `scores` table** and removes **all** LLM judge rows for **every** model. You **cannot** recover them. **Does not** delete `events` or `cleaned`. Only run when you deliberately want a full reset (re-rubric, bad run, outdated schema, or re-score from scratch).
+## Implementation
 
-Default DB path is `project_config.DATA_DIR / DB_FILENAME` (usually `data/raw/events.db`). Use your `--db` path if you override it.
-
-```bash
-sqlite3 data/raw/events.db "DROP TABLE IF EXISTS scores;"
-```
-
-The next `python judge.py` will recreate `scores` on first write. If you had an old table without FUN/INSI columns, dropping once also lets the judge create the [current schema](../docs/DB_SCHEMA.md#table-scores).
-
-## Rubric
-
-The system prompt and scoring rules are defined in [`papers/publication1/CONFORMITY_SYSTEM_PROMPT.md`](../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md). `judge/rubric.py` loads that file verbatim as the system prompt. The model must return a single JSON object with all eight keys (`fun_*`, `nsi_*`, `insi_*`, `isi_*`); the judge parses and persists every field to SQLite.
-
-Implementation: [`judge/ollama_judge.py`](ollama_judge.py) (Ollama), [`judge/gpt_judge.py`](gpt_judge.py) (OpenAI), shared parsing in [`judge/judge_result.py`](judge_result.py).
+| Module | Role |
+|--------|------|
+| `config.py` | `MODEL_REGISTRY` — name → `(backend, tag, location)` |
+| `detection/runner.py` | Orchestration: resolve model → judge → batch-write scores |
+| `detection/storage.py` | `SamplesReader` — `samples JOIN cleaned` with filters |
+| `storage.py` | `ScoresWriter`, `get_scored_comment_ids`, `EXPERIMENT_VERSION` |
+| `judge_result.py` | `JudgeResult` dataclass; JSON parsing shared across all backends |
+| `rubric.py` | Loads `CONFORMITY_SYSTEM_PROMPT.md` as the system prompt |
+| `gpt_judge.py` | OpenAI backend |
+| `openrouter_judge.py` | OpenRouter backend (OpenAI-compatible) |
+| `ollama_judge.py` | Ollama backend |
