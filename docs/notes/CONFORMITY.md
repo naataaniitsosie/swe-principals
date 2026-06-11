@@ -297,13 +297,8 @@ The LLM provides four independent dimensions per comment, each with a 0–3 scor
 | `insi_score` / `insi_reasoning` | 0–3 | Implicit normative social influence |
 | `isi_score` / `isi_reasoning` | 0–3 | Informational / expert influence |
 
-#### Combined Conformity Score
-To integrate lexical and contextual signals, a combined score is calculated:
-
 ```
-ConformityScore =
-    α * SurfaceConformityScore +
-    β * (nsi_score + isi_score)
+ConformityScore = nsi_score + insi_score + isi_score
 ```
 
 Weights (α, β) will be determined empirically during validation.
@@ -556,6 +551,9 @@ Flags for `dataset.py`:
 - `--output-dir` – Output directory (default: `./data/raw`)
 
 ## Results
+
+### Near-frontier judges
+What was classified as near-frontier models had difficulty consuming the response. `gemma4:26b`, as referenced in the [judge configuration](../../judge/README.md), could not output valid JSON as required by the [conformity prompt](../../papers/publication1/CONFORMITY_SYSTEM_PROMPT.md). One reason could be the model was incapable of understanding the prompt. <cite krumdick2025nofree>
 
 ## Discussion
 

@@ -1,8 +1,9 @@
 """
 OpenAI Chat Completions judge: same rubric and JSON parsing as OllamaJudge (judge.judge_result).
 
-Uses OPENAI_API_TOKEN for authentication (set in the environment or in a `.env` file at the
-repository root; see `project_config`).
+Uses OPENAI_API_TOKEN for authentication.  The token is read from the `.env` file at the
+repository root (loaded by `project_config` on import) or from the process environment.
+No default model is provided — callers must pass `model=` explicitly.
 """
 import os
 from typing import Optional
@@ -12,9 +13,6 @@ from openai import OpenAI
 
 from judge.judge_result import JudgeResult, judge_result_from_raw_model_output
 from judge.rubric import build_user_message, get_system_prompt
-
-# Default model id (OpenAI API); override via GPTJudge(model=...).
-DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
 
 # Request timeout in seconds (large comments + reasoning JSON).
 _DEFAULT_TIMEOUT_S = 120.0
@@ -26,11 +24,14 @@ class GPTJudge:
     """
     Judge that uses the OpenAI API with the CONFORMITY system prompt.
     Call score(cleaned_text) -> JudgeResult (full CONFORMITY dimensions).
+
+    `model` is required — no default is provided to prevent accidental use of a stale
+    or incorrect model id.
     """
 
     def __init__(
         self,
-        model: str = DEFAULT_OPENAI_MODEL,
+        model: str,
         *,
         api_key: Optional[str] = None,
         timeout: float = _DEFAULT_TIMEOUT_S,

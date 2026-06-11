@@ -15,7 +15,7 @@ The judge scores PR comments from the stratified sample using the rubric in [`pa
 
 The `--model` flag selects the model **and** determines the backend automatically. The resolved backend and location are logged at run start.
 
-### Why frontier-only, no social/technical split
+### Why no social/technical split
 
 An earlier design split models into "social judges" (NSI/INSI) and "technical judges" (FUN/ISI) based on training focus. That split was retired for three reasons:
 
@@ -23,18 +23,32 @@ An earlier design split models into "social judges" (NSI/INSI) and "technical ju
 2. **It adds unjustifiable methodological complexity.** The social/technical split would need to be defended in the paper, and the justification is weaker now than it was two years ago.
 3. **Disagreements become uninterpretable.** If a social judge and a technical judge disagree on FUN/ISI scores, there is no clean way to determine whether the disagreement is a real signal or model-specific calibration noise.
 
-The replacement strategy: run all frontier judges on all four dimensions, then measure inter-rater agreement across models as the reliability signal.
+The replacement strategy: run all judges on all four dimensions, then measure inter-rater agreement across models as the reliability signal.
 
 ### Frontier judges
 
-Each model scores all four dimensions (FUN, NSI, INSI, ISI). Inter-rater agreement across models is the primary reliability measure.
+Closed-weight hosted models. Each scores all four dimensions (FUN, NSI, INSI, ISI). Inter-rater agreement across models is the primary reliability measure.
 
-| CLI name | Size | Tag / ID | Hosted at | Role |
-|----------|------|----------|-----------|------|
-| `claude-sonnet` | — | `anthropic/claude-sonnet-4-6` | OpenRouter | Primary judge. Strong instruction following and social reasoning. |
-| `gemma4-27b` | 27B | `gemma4:27b` | local Ollama | Local workhorse. ~14 GB Q4, fits comfortably on 34 GB Mac. `ollama pull gemma4:27b` |
-| `gpt-5.4-mini` | — | `gpt-5.4-mini` | OpenAI API | Standardised baseline. Fast and cheap for full-sample runs. |
-| `deepseek-v3` | 37B active (671B MoE) | `deepseek/deepseek-chat-v3-0324` | OpenRouter | Fourth perspective. Strong general reasoning. [HF](https://huggingface.co/deepseek-ai/DeepSeek-V3.2) |
+| CLI name | Model ID | Hosted at | Approx. cost / 1,903 comments | Notes |
+|----------|----------|-----------|-------------------------------|-------|
+| `gemini-flash` | `google/gemini-2.5-flash` | OpenRouter | ~$3 | Cheapest frontier option. |
+| `gpt-5.4-mini` | `openai/gpt-5.4-mini` | OpenRouter† | ~$6 | Fast, low-cost baseline. |
+| `claude-haiku` | `anthropic/claude-haiku-4-5` | OpenRouter | ~$8 | Fastest Anthropic model. |
+| `gemini-pro` | `google/gemini-2.5-pro` | OpenRouter | ~$13 | Google flagship. |
+| `claude-sonnet` | `anthropic/claude-sonnet-4-6` | OpenRouter | ~$23 | Strong instruction following and social reasoning. |
+| `gpt-5.5` | `openai/gpt-5.5` | OpenRouter† | ~$42 | Most capable OpenAI model in suite. |
+
+†OpenAI direct API preferred for GPT models; OpenRouter used for now to keep a single API key.
+
+### Near-frontier judges
+
+Open-weight models run locally via Ollama. Lower cost, useful for cross-architecture agreement checks and as ablation baselines.
+
+| CLI name | Size | Ollama tag | Notes |
+|----------|------|------------|-------|
+| `gemma4-26b` | 26B total / 4B active (MoE) | `gemma4:26b` | Gemma 4 26B-A4B (`google/gemma-4-26B-A4B-it`) — MoE: ~4B activated per token. Fast inference. `ollama pull gemma4:26b` |
+| `llama4-scout` | 17B active (109B MoE) | `llama4:scout` | Meta Llama 4 Scout. `ollama pull llama4:scout` |
+| `qwen3-30b` | 30B | `qwen3:30b` | Qwen3 30B. `ollama pull qwen3:30b` |
 
 ### Smoke test models
 
@@ -42,28 +56,35 @@ Fast, low-quality models for verifying the pipeline end-to-end before committing
 
 | CLI name | Size | Tag / ID | Hosted at | Notes |
 |----------|------|----------|-----------|-------|
-| `gemma4-e4b` | 4B effective | `gemma4:e4b` | local Ollama | Smoke test proxy for `gemma4-27b`. `ollama pull gemma4:e4b` |
+| `gemma4-e4b` | 4B effective | `gemma4:e4b` | local Ollama | Smoke test proxy for `gemma4-26b`. `ollama pull gemma4:e4b` |
 | `starcoder2-3b` | 3B | `starcoder2:3b` | local Ollama | Lightweight smoke test. `ollama pull starcoder2:3b` |
 
 ---
 
 ### Running the full judge suite
 
-The intended workflow is to run all four frontier models on the full sample, then compare agreement:
+The intended workflow is to smoke-test first, then run all frontier models on the full sample and compare agreement:
 
 ```bash
 # 1. Smoke test: verify pipeline and JSON output before committing
 python judge.py -m gemma4-e4b -n 20 -r expressjs/express
 python browse_scores.py --model gemma4:e4b --sample-n 15
 
-# 2. Full runs — one per frontier model
-python judge.py -m gemma4-27b  --skip-existing
-python judge.py -m claude-sonnet --skip-existing
-python judge.py -m gpt-5.4-mini --skip-existing
-python judge.py -m deepseek-v3  --skip-existing
+# 2. Frontier runs — cheapest to most expensive (~$95 total for all 6)
+caffeinate python judge.py -m gemini-flash  --skip-existing   # ~$3
+caffeinate python judge.py -m gpt-5.4-mini  --skip-existing   # ~$6
+caffeinate python judge.py -m claude-haiku  --skip-existing   # ~$8
+caffeinate python judge.py -m gemini-pro    --skip-existing   # ~$13
+caffeinate python judge.py -m claude-sonnet --skip-existing   # ~$23
+caffeinate python judge.py -m gpt-5.5       --skip-existing   # ~$42
+
+# 3. Near-frontier runs (local Ollama, free) — wrap with caffeinate to prevent macOS sleep
+caffeinate -i python judge.py -m gemma4-26b   --skip-existing
+caffeinate -i python judge.py -m llama4-scout --skip-existing
+caffeinate -i python judge.py -m qwen3-30b    --skip-existing
 ```
 
-Inter-rater agreement (e.g. Krippendorff's α or ICC) is then computed across all four models per dimension. Dimensions where models agree are reliable; dimensions where they diverge need human adjudication (Objective 2).
+Inter-rater agreement (e.g. Krippendorff's α or ICC) is then computed across models per dimension. Dimensions where models agree are reliable; dimensions where they diverge need human adjudication (Objective 2).
 
 ---
 
@@ -76,9 +97,9 @@ Inter-rater agreement (e.g. Krippendorff's α or ICC) is then computed across al
 
 ## How to run
 
-```bash
-# Local Ollama
-python judge.py -m gemma4-27b --skip-existing
+
+# Local Ollama (wrap with caffeinate to prevent macOS sleep on long runs)
+caffeinate -i python judge.py -m gemma4-26b --skip-existing
 
 # OpenAI
 python judge.py -m gpt-5.4-mini --skip-existing
@@ -90,10 +111,10 @@ python judge.py -m claude-sonnet --skip-existing
 python judge.py -m gemma4-e4b -n 10 -r expressjs/express
 
 # Dry run: see what would be scored without calling the model
-python judge.py -m gemma4-27b --dry-run
+python judge.py -m gemma4-26b --dry-run
 
 # Score only inline diff comments across all repos
-python judge.py -m gemma4-27b -e PullRequestReviewCommentEvent --skip-existing
+python judge.py -m gemma4-26b -e PullRequestReviewCommentEvent --skip-existing
 ```
 
 ## CLI options
@@ -137,7 +158,7 @@ sqlite3 data/raw/events.db "SELECT model_name, COUNT(*), AVG(nsi_score) FROM sco
 
 Browse scored comments in a readable layout:
 ```bash
-python browse_scores.py --model gemma4:27b --sample-n 15
+python browse_scores.py --model gemma4:26b --sample-n 15
 ```
 
 ---

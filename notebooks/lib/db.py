@@ -21,4 +21,4 @@ DB_PATH = repo_root() / DATA_DIR / DB_FILENAME
 
 
 def connect() -> sqlite3.Connection:
-    return sqlite3.connect(str(DB_PATH))
+    return sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)

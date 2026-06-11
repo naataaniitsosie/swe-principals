@@ -1,11 +1,5 @@
 import pandas as pd
 from .db import connect
-from .sql import (
-    repo_name_sql,
-    author_association_sql,
-    comment_author_login_sql,
-    event_type_sql,
-)
 
 SCORE_COLUMNS = ("fun_score", "nsi_score", "insi_score", "isi_score")
 
@@ -40,36 +34,48 @@ def all_zero_scores_mask(df: pd.DataFrame) -> pd.Series:
     )
 
 
-def load_scores_with_metadata(*, include_cleaned_text: bool = False) -> pd.DataFrame:
-    """Scores joined to events (via cleaned). One row per (comment_id, model_name).
+def load_scores_with_metadata(
+    *,
+    include_cleaned_text: bool = False,
+    experiment_version: int | None = None,
+    model_allowlist: list[str] | None = None,
+) -> pd.DataFrame:
+    """Scores joined to cleaned. One row per (comment_id, model_name).
 
+    Only includes successfully parsed rows (parse_ok = 1).
+    Pass experiment_version to scope to a single experiment run; defaults to all versions.
+    Pass model_allowlist to restrict to specific model names.
     Set include_cleaned_text=True when you need comment text (e.g. samples of all-zero rows).
     """
-    rn = repo_name_sql("e")
-    aa = author_association_sql("e")
-    ul = comment_author_login_sql("e")
-    et = event_type_sql("e")
-    repo_col = f"COALESCE(NULLIF(TRIM({rn}), ''), '(missing)')"
-    aa_label = f"COALESCE(NULLIF(TRIM({aa}), ''), '(empty)')"
-    user_col = f"COALESCE(NULLIF(TRIM({ul}), ''), '(missing)')"
-    type_col = f"COALESCE(NULLIF(TRIM({et}), ''), '(missing)')"
     text_col = ", c.cleaned_text AS cleaned_text" if include_cleaned_text else ""
+    version_filter = (
+        f"AND s.experiment_version = {int(experiment_version)}"
+        if experiment_version is not None
+        else ""
+    )
+    if model_allowlist:
+        placeholders = ", ".join(f"'{m}'" for m in model_allowlist)
+        model_filter = f"AND s.model_name IN ({placeholders})"
+    else:
+        model_filter = ""
     q = f"""
     SELECT
       s.comment_id,
       s.model_name,
+      s.experiment_version,
       s.fun_score,
       s.nsi_score,
       s.insi_score,
       s.isi_score,
-      {repo_col} AS repo,
-      {aa_label} AS author_association,
-      {user_col} AS user_login,
-      {type_col} AS event_type
+      COALESCE(NULLIF(TRIM(c.repo), ''), '(missing)') AS repo,
+      COALESCE(NULLIF(TRIM(c.author_association), ''), '(empty)') AS author_association,
+      COALESCE(NULLIF(TRIM(c.event_type), ''), '(missing)') AS event_type
       {text_col}
     FROM scores s
     INNER JOIN cleaned c ON c.id = s.comment_id
-    INNER JOIN events e ON e.id = c.id
+    WHERE s.parse_ok = 1
+    {version_filter}
+    {model_filter}
     """
     with connect() as conn:
         return pd.read_sql_query(q, conn)
