@@ -115,6 +115,7 @@ Raw events were ingested and processed through a multi-stage pipeline designed t
 
 \paragraph{Formatting and Tokenization.} Finally, all text was normalized to UTF-8, and markdown artifacts (e.g., nested blockquotes from previous emails) were flattened to prevent the judge model from hallucinating scores based on the formatting of a quoted reply rather than the new contribution.
 
+
 \section{LLM-as-Judge Meta Evaluation}
 LLM-as-judge methods offer a scalable mechanism for open-ended evaluation, but their reliability depends on model capability and careful control of known evaluator biases. Prior work shows that strong judge models can approximate human preferences while still exhibiting position bias, verbosity bias, and self-enhancement bias \cite{zheng2023judging}. Accordingly, before applying LLM-as-judge scoring to PR discourse, we treat judge selection, prompt design, and bias mitigation as part of the measurement protocol rather than as implementation details.
 
